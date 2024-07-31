@@ -65,24 +65,58 @@ namespace std {
 }
 
 void takeCertIp(Certificate* curr){
-    string id = "";
+    string id;
     
-    string ct = "";
+    string ct;
 
-    string pName = "";
-    vector<string> lnName = {};
+    string pName;
+    int nameSize;
+    vector<string> lnName;
 
-    bool iPSubject = false;
+    int iPSubject;
     string pSubject = "";
 
     string pNameSubject = "";
-    vector<string> lnSubject = {};
+    int lnSubjectSize;
+    vector<string> lnSubject;
 
     int dBit = 0;
 
-    // MOD
-    // take input and add to all hash table
 
+    cin>>id;
+    curr->certID = id;
+
+    cin>>ct;
+    if(ct == "NAME")   curr->certType = NAME;
+    else    curr->certType = AUTH;
+
+    cin>>pName;
+    curr->name.issuer.key = pName;
+
+    cin>>nameSize;
+    lnName.resize(nameSize);
+    for(int i=0; i<nameSize; i++){
+        cin>>lnName[i];
+    }
+
+    cin>>iPSubject;
+    curr->subject.isPrincipal = iPSubject;
+
+    if(iPSubject){
+        cin>>pSubject;
+        curr->subject.principal.key = pSubject;
+    }
+    else{
+        cin>>pNameSubject;
+        curr->subject.name.issuer.key = pNameSubject;
+
+        cin>>lnSubjectSize;
+        for(int i=0; i<lnSubjectSize; i++){
+            cin>>lnSubject[i];
+        }
+    }
+
+    cin>>dBit;
 }
 
 
@@ -92,7 +126,7 @@ unordered_map<vector<string>, unordered_set<Certificate>> value;
 unordered_map<vector<string>, unordered_set<Certificate>> compatible;
 
 // hash table to store cert with id
-unordered_map<string, unordered_set<Certificate>> certPool;
+unordered_map<string, Certificate> certPool;
 
 // additional table for unres
 // unordered_map<pair<Name, Subject>, unordered_set<Certificate>> check;
@@ -124,6 +158,13 @@ vector<vector<string>> returnPrefix(vector<string> name){
 }
 
 
+// compose function
+
+void compose(){
+    // rewrite rules?? add proofs?? as cert id vector?? 
+}
+
+
 // insert function
 
 vector<string> insertCert(Certificate newCert){
@@ -137,16 +178,21 @@ vector<string> insertCert(Certificate newCert){
         }
 
         // add in value
-
         vector<vector<string>> prefixName = returnPrefix(newCert.subject.name.localNames);
 
         value[newCert.name.localNames].insert(newCert);
-        for(int i=0; i<prefixName.size(); i++){
-            loadValue(prefixName[i]);
+        for(auto x: prefixName){
+            loadValue(x);
         }
         
-        // unordered_set<Certificate> setCertValue;
+        unordered_set<Certificate> setCertValue;
 
+        for(auto x: prefixName){
+            compose
+        }
+    }
+    else{
+        // for isPrincipal true
     }
 }
 
@@ -165,121 +211,20 @@ vector<string> nameResolution(){
 }
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-// Function to resolve names
-void resolveName(const string& name, 
-                 const unordered_map<string, vector<Certificate>>& certs, 
-                 unordered_set<string>& resolved) {
-    unordered_set<string> toResolve = {name};
-
-    while (!toResolve.empty()) {
-        string current = *toResolve.begin();
-        toResolve.erase(current);
-
-        if (resolved.find(current) == resolved.end()) {     // or if(!resolved.count(current))
-            resolved.insert(current);
-
-            if (certs.find(current) != certs.end()) {       // or if(certs.count(current))
-                for (const Certificate& cert : certs.at(current)) {
-                    if (resolved.find(cert.subject) == resolved.end()) {
-                        toResolve.insert(cert.subject);
-                    }
-                }
-            }
-        }
-    }
-}
-
-// Function to unresolve names
-void unresolveName(const string& name, 
-                   const unordered_map<string, vector<Certificate>>& certs, 
-                   unordered_set<string>& resolved) {
-    unordered_set<string> toUnresolve = {name};
-
-    while (!toUnresolve.empty()) {
-        string current = *toUnresolve.begin();
-        toUnresolve.erase(current);
-
-        if (resolved.find(current) != resolved.end()) {
-            resolved.erase(current);
-
-            if (certs.find(current) != certs.end()) {
-                for (const Certificate& cert : certs.at(current)) {
-                    if (resolved.find(cert.subject) != resolved.end()) {
-                        toUnresolve.insert(cert.subject);
-                    }
-                }
-            }
-        }
-    }
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 int main() {
-    vector<Certificate> certificates = {
-        {"Alice", "Bob"},
-        {"Bob", "Carol"},
-        {"Carol", "Dave"},
-        {"Eve", "Frank"}
-    };
+    int numberCert;
+    cin>>numberCert;
 
-    unordered_map<string, vector<Certificate>> certs;
-    for (const Certificate& cert : certificates) {
-        certs[cert.issuer].push_back(cert);
+    for(int i=0; i<numberCert; i++){
+        Certificate *newCert = new Certificate;
+        takeCertIp(newCert);
+
+        if(certPool.count(newCert->certID))
+            certPool[newCert->certID] = *newCert;
     }
 
-    unordered_set<string> resolved;
 
-
-    // resolve
-
-    string startName = "Alice";
-    resolveName(startName, certs, resolved);
-
-    cout << "Resolved names for " << startName << ": ";
-    for (const string& name : resolved) {
-        cout << name << " ";
-    }
-    cout << endl;
-
-
-    // unresolve
-
-    startName = "Bob";
-    unresolveName(startName, certs, resolved);
-
-    cout << "Resolved names after unresolving " << startName << ": ";
-    for (const string& name : resolved) {
-        cout << name << " ";
-    }
-    cout << endl;
 
     return 0;
 }
+
