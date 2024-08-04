@@ -50,8 +50,15 @@ struct Certificate {
     int delegationBit;
 
     bool operator==(const Certificate& other) const {
-        return id == other.id && name == other.name;
+        return certID == other.certID;
     }
+};
+
+struct Proof{
+    Name name;
+    Subject subject;
+    vector<string> certIDs;
+    int delegationBit;
 };
 
 // Specialize std::hash for Certificate
@@ -121,7 +128,7 @@ void takeCertIp(Certificate* curr){
 
 
 // hash tables
-unordered_map<Name, unordered_set<Certificate>> check;
+unordered_map<pair<Name, Subject>, unordered_set<Certificate>> check;
 unordered_map<vector<string>, unordered_set<Certificate>> value;
 unordered_map<vector<string>, unordered_set<Certificate>> compatible;
 
@@ -160,48 +167,69 @@ vector<vector<string>> returnPrefix(vector<string> name){
 
 // compose function
 
-void compose(){
+Certificate compose(Certificate a, Certificate b){
     // rewrite rules?? add proofs?? as cert id vector?? 
+    Certificate* c = new Certificate;
+
+    c->certID = a.certID + "#" + b.certID;
+    c->certType = a.certType;
+    c->delegationBit = a.delegationBit;
+    
+    c->name.issuer.key = "composed";
+    c->name.localNames = a.name.localNames;
+
+    
+
+    return Certificate c;
 }
 
 
 // insert function
 
 vector<string> insertCert(Certificate newCert){
-    if(check.count(newCert.name)){
+    if(!check.count({newCert.name, newCert.subject})){
         // add in check
-        check[newCert.name].insert(newCert);
+        check[{newCert.name, newCert.subject}].insert(newCert);
 
         // add in comaptible
         if(!newCert.subject.isPrincipal){
             compatibleAddPrefix(newCert);
+
+            vector<vector<string>> prefixName = returnPrefix(newCert.subject.name.localNames);
+
+            unordered_set<Certificate> setCertValue;
+
+            for(auto x: prefixName){
+                for(auto y: value[x])
+                    setCertValue.insert(y);
+            }
+
+            for(auto x: setCertValue)
+                insertCert(compose(x, newCert));
         }
 
-        // add in value
-        vector<vector<string>> prefixName = returnPrefix(newCert.subject.name.localNames);
 
-        value[newCert.name.localNames].insert(newCert);
-        for(auto x: prefixName){
-            loadValue(x);
-        }
-        
-        unordered_set<Certificate> setCertValue;
+        else{
+            // for isPrincipal true
 
-        for(auto x: prefixName){
-            compose
+            // add in value
+            value[newCert.name.localNames].insert(newCert);
+
+            unordered_set<Certificate> setCertCompatible;
+
+            for(auto x: value[newCert.name.localNames])
+                insertCert(compose(x, newCert));
+            
         }
-    }
-    else{
-        // for isPrincipal true
     }
 }
 
 
 // load value function
 
-void loadValue(vector<string> name){
-    if(!value.count(name))  value[name] = {};
-}
+// void loadValue(vector<string> name){
+//     if(!value.count(name))  value[name] = {};
+// }
 
 
 // name resolution
@@ -227,4 +255,3 @@ int main() {
 
     return 0;
 }
-
