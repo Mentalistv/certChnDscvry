@@ -59,6 +59,8 @@ struct Proof{
     Subject subject;
     vector<string> certIDs;
     int delegationBit;
+
+    Proof() : delegationBit(0) {}
 };
 
 // Specialize std::hash for Certificate
@@ -67,6 +69,18 @@ namespace std {
     struct hash<Certificate> {
         std::size_t operator()(const Certificate& cert) const {
             return std::hash<string>()(cert.certID);
+        }
+    };
+}
+
+namespace std {
+    template <>
+    struct hash<Proof> {
+        std::size_t operator()(const Proof& p) const {
+            string temp = "";
+            for(auto x: p.certIDs)  temp += x;
+
+            return std::hash<string>()(temp);
         }
     };
 }
@@ -128,12 +142,15 @@ void takeCertIp(Certificate* curr){
 
 
 // hash tables
-unordered_map<pair<Name, Subject>, unordered_set<Certificate>> check;
-unordered_map<vector<string>, unordered_set<Certificate>> value;
-unordered_map<vector<string>, unordered_set<Certificate>> compatible;
+unordered_map<pair<Name, Subject>, unordered_set<Proof>> check;
+unordered_map<vector<string>, unordered_set<Proof>> value;
+unordered_map<vector<string>, unordered_set<Proof>> compatible;
 
 // hash table to store cert with id
 unordered_map<string, Certificate> certPool;
+
+// set to keep track of already loaded values
+unordered_set<vector<string>> loadedValue;
 
 // additional table for unres
 // unordered_map<pair<Name, Subject>, unordered_set<Certificate>> check;
@@ -141,14 +158,14 @@ unordered_map<string, Certificate> certPool;
 
 // utility functions
 
-void compatibleAddPrefix(Certificate cert){
+void compatibleAddPrefix(Proof p){
     vector<string> temp;
-    vector<string> name = cert.subject.name.localNames;
+    vector<string> name = p.subject.name.localNames;
 
     for(int i=0; i<name.size(); i++){
         temp.push_back(name[i]);
 
-        compatible[temp].insert(cert);
+        compatible[temp].insert(p);
     }
 }
 
@@ -164,48 +181,86 @@ vector<vector<string>> returnPrefix(vector<string> name){
     return res;    
 }
 
+Proof* certToProof(Certificate c){
+    Proof* p = new Proof;
+a.push_back(43);
+    if(a == b)  cout<<"dsd";
+    p->certIDs.push_back(c.certID);
+
+    p->delegationBit = c.delegationBit;
+
+    p->name = c.name;
+
+    p->subject = c.subject;
+
+    return p;
+}
+
 
 // compose function
 
-Certificate compose(Certificate a, Certificate b){
-    // rewrite rules?? add proofs?? as cert id vector?? 
-    Certificate* c = new Certificate;
+Proof compose(Proof a, Proof b){
+    Proof* p = new Proof;
 
-    c->certID = a.certID + "#" + b.certID;
-    c->certType = a.certType;
-    c->delegationBit = a.delegationBit;
-    
-    c->name.issuer.key = "composed";
-    c->name.localNames = a.name.localNames;
+    p->name.issuer.key = "composed";
+    p->name.localNames = a.name.localNames;
 
-    
+    if(a.subject.name.localNames == b.name.localNames){
+        if(b.subject.isPrincipal){
+            p->subject.isPrincipal = true;
+            p->subject.principal = b.subject.principal;
+        }
+        else{
+            p->subject.isPrincipal = false;
+            p->subject.name = b.subject.name;
+        }
+    }
+    else{
+        p->subject.isPrincipal = false;
 
-    return Certificate c;
+        p->subject.name.localNames = b.subject.name.localNames;
+
+        int nameSize = b.name.localNames.size();
+        int subjectSize = a.subject.name.localNames.size();
+        
+        for(int i=nameSize; i<subjectSize; i++)
+            p->subject.name.localNames.push_back(a.subject.name.localNames[i]);
+    }
+
+    p->delegationBit = a.delegationBit;
+
+    for(auto x: a.certIDs)
+        p->certIDs.push_back(x);
+
+    for(auto x: b.certIDs)
+        p->certIDs.push_back(x);
+
+    return *p;
 }
 
 
 // insert function
 
-vector<string> insertCert(Certificate newCert){
-    if(!check.count({newCert.name, newCert.subject})){
+vector<string> insert(Proof p){
+    if(!check.count({p.name, p.subject})){
         // add in check
-        check[{newCert.name, newCert.subject}].insert(newCert);
+        check[{p.name, p.subject}].insert(p);
 
         // add in comaptible
-        if(!newCert.subject.isPrincipal){
-            compatibleAddPrefix(newCert);
+        if(!p.subject.isPrincipal){
+            compatibleAddPrefix(p);
 
-            vector<vector<string>> prefixName = returnPrefix(newCert.subject.name.localNames);
+            vector<vector<string>> prefixName = returnPrefix(p.subject.name.localNames);
 
-            unordered_set<Certificate> setCertValue;
+            unordered_set<Proof> setProofValue;
 
             for(auto x: prefixName){
                 for(auto y: value[x])
-                    setCertValue.insert(y);
+                    setProofValue.insert(y);
             }
 
-            for(auto x: setCertValue)
-                insertCert(compose(x, newCert));
+            for(auto x: setProofValue)
+                insert(compose(x, p));
         }
 
 
@@ -213,13 +268,12 @@ vector<string> insertCert(Certificate newCert){
             // for isPrincipal true
 
             // add in value
-            value[newCert.name.localNames].insert(newCert);
+            value[p.name.localNames].insert(p);
 
-            unordered_set<Certificate> setCertCompatible;
+            unordered_set<Proof> setProofCompatible = compatible[p.name.localNames];
 
-            for(auto x: value[newCert.name.localNames])
-                insertCert(compose(x, newCert));
-            
+            for(auto x: setProofCompatible)
+                insert(compose(x, p));            
         }
     }
 }
@@ -227,14 +281,22 @@ vector<string> insertCert(Certificate newCert){
 
 // load value function
 
-// void loadValue(vector<string> name){
-//     if(!value.count(name))  value[name] = {};
-// }
+void loadValue(vector<string> name){
+    // pick useful certs :: make proofs :: insert them :: return value[name] ::
+    if(!loadedValue.count(name)){
+        loadedValue.insert(name);
+
+        for(auto x: certPool){
+            if(x.second.name.localNames == name)
+        }
+
+    }
+}
 
 
 // name resolution
 
-vector<string> nameResolution(){
+vector<string> nameResolution(vector<string> name){
 
 }
 
@@ -255,3 +317,4 @@ int main() {
 
     return 0;
 }
+
