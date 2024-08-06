@@ -46,6 +46,10 @@ struct Subject {
     Subject() : isPrincipal(false) {}
     Subject(Principal p) : isPrincipal(true), principal(p) {}
     Subject(Name n) : isPrincipal(false), name(n) {}
+
+    bool operator==(const Subject& other) const {
+        return (isPrincipal == other.isPrincipal && principal == other.principal) || (name == other.name);
+    }
 };
 
 struct Certificate {
@@ -67,7 +71,39 @@ struct Proof{
     int delegationBit;
 
     Proof() : delegationBit(0) {}
+
+    bool operator==(const Proof& other) const {
+        return name == other.name && subject == other.subject && certIDs == other.certIDs && delegationBit == other.delegationBit;
+    }
 };
+
+// Specialization of std::hash for pair<Name, Subject>
+namespace std {
+    template <>
+    struct hash<pair<Name, Subject>> {
+        std::size_t operator()(const pair<Name, Subject>& p) const {
+            string temp = "";
+            for (const auto& x : p.first.localNames)
+                temp += x;
+            for (const auto& x : p.second.name.localNames)
+                temp += x;
+            return std::hash<string>()(temp);
+        }
+    };
+}
+
+namespace std {
+    template <>
+    struct hash<vector<string>> {
+        std::size_t operator()(const vector<string>& p) const {
+            string temp = "";
+            for (const auto& x : p)
+                temp += x;
+            return std::hash<string>()(temp);
+        }
+    };
+}
+
 
 // Specialize std::hash for Certificate
 namespace std {
@@ -84,7 +120,14 @@ namespace std {
     struct hash<Proof> {
         std::size_t operator()(const Proof& p) const {
             string temp = "";
-            for(auto x: p.certIDs)  temp += x;
+
+            for(auto x: p.name.localNames)
+                temp += x;
+
+            temp += p.certIDs[0];
+
+            for(auto x: p.subject.name.localNames)
+                temp += x;
 
             return std::hash<string>()(temp);
         }
@@ -93,15 +136,15 @@ namespace std {
 
 
 // hash tables
-// unordered_map<pair<Name, Subject>, unordered_set<Proof*>> check;
-// unordered_map<vector<string>, unordered_set<Proof*>> value;
-// unordered_map<vector<string>, unordered_set<Proof*>> compatible;
+unordered_map<pair<Name, Subject>, unordered_set<Proof>> check;
+unordered_map<vector<string>, unordered_set<Proof>> value;
+unordered_map<vector<string>, unordered_set<Proof>> compatible;
 
 // hash table to store cert with id
 unordered_map<string, Certificate> certPool;
 
 // set to keep track of already loaded values
-// unordered_set<vector<string>> loadedValue;
+unordered_set<vector<string>> loadedValue;
 
 // additional table for unres
 // unordered_map<pair<Name, Subject>, unordered_set<Certificate>> ;
@@ -177,7 +220,7 @@ void processCertificatesFromFolder(const string& folderPath) {
             certPool[cert.certID] = cert;
 
             // Process the certificate (for example, print it or store it in a list)
-            cout << "Processed certificate ID: " << cert.certID << endl;
+            // cout << "Processed certificate ID: " << cert.certID << endl;
         }
     }
 }
@@ -185,147 +228,154 @@ void processCertificatesFromFolder(const string& folderPath) {
 
 // // utility functions
 
-// void compatibleAddPrefix(Proof p){
-//     vector<string> temp;
-//     vector<string> name = p.subject.name.localNames;
+void compatibleAddPrefix(Proof p){
+    vector<string> temp;
+    vector<string> name = p.subject.name.localNames;
 
-//     for(int i=0; i<name.size(); i++){
-//         temp.push_back(name[i]);
+    for(int i=0; i<name.size(); i++){
+        temp.push_back(name[i]);
 
-//         compatible[temp].insert(p);
-//     }
-// }
+        compatible[temp].insert(p);
+    }
+}
 
-// vector<vector<string>> returnPrefix(vector<string> name){
-//     vector<vector<string>> res;
-//     vector<string> temp;
+vector<vector<string>> returnPrefix(vector<string> name){
+    vector<vector<string>> res;
+    vector<string> temp;
 
-//     for(int i=0; i<name.size(); i++){
-//         temp.push_back(name[i]);
-//         res.push_back(temp);
-//     }
+    for(int i=0; i<name.size(); i++){
+        temp.push_back(name[i]);
+        res.push_back(temp);
+    }
 
-//     return res;    
-// }
+    return res;    
+}
 
-// Proof* certToProof(Certificate c){
-//     Proof* p = new Proof;
-// a.push_back(43);
-//     if(a == b)  cout<<"dsd";
-//     p->certIDs.push_back(c.certID);
+Proof certToProof(Certificate c){
+    Proof* p = new Proof;
 
-//     p->delegationBit = c.delegationBit;
+    p->certIDs.push_back(c.certID);
 
-//     p->name = c.name;
+    p->delegationBit = c.delegationBit;
 
-//     p->subject = c.subject;
+    p->name = c.name;
 
-//     return p;
-// }
+    p->subject = c.subject;
+
+    return *p;
+}
 
 
 // // compose function
 
-// Proof compose(Proof a, Proof b){
-//     Proof* p = new Proof;
+Proof compose(Proof a, Proof b){
+    Proof* p = new Proof;
 
-//     p->name.issuer.key = "composed";
-//     p->name.localNames = a.name.localNames;
+    p->name.issuer.key = "composed";
+    p->name.localNames = a.name.localNames;
 
-//     if(a.subject.name.localNames == b.name.localNames){
-//         if(b.subject.isPrincipal){
-//             p->subject.isPrincipal = true;
-//             p->subject.principal = b.subject.principal;
-//         }
-//         else{
-//             p->subject.isPrincipal = false;
-//             p->subject.name = b.subject.name;
-//         }
-//     }
-//     else{
-//         p->subject.isPrincipal = false;
+    if(a.subject.name.localNames == b.name.localNames){
+        if(b.subject.isPrincipal){
+            p->subject.isPrincipal = true;
+            p->subject.principal = b.subject.principal;
+        }
+        else{
+            p->subject.isPrincipal = false;
+            p->subject.name = b.subject.name;
+        }
+    }
+    else{
+        p->subject.isPrincipal = false;
 
-//         p->subject.name.localNames = b.subject.name.localNames;
+        p->subject.name.localNames = b.subject.name.localNames;
 
-//         int nameSize = b.name.localNames.size();
-//         int subjectSize = a.subject.name.localNames.size();
+        int nameSize = b.name.localNames.size();
+        int subjectSize = a.subject.name.localNames.size();
         
-//         for(int i=nameSize; i<subjectSize; i++)
-//             p->subject.name.localNames.push_back(a.subject.name.localNames[i]);
-//     }
+        for(int i=nameSize; i<subjectSize; i++)
+            p->subject.name.localNames.push_back(a.subject.name.localNames[i]);
+    }
 
-//     p->delegationBit = a.delegationBit;
+    p->delegationBit = a.delegationBit;
 
-//     for(auto x: a.certIDs)
-//         p->certIDs.push_back(x);
+    for(auto x: a.certIDs)
+        p->certIDs.push_back(x);
 
-//     for(auto x: b.certIDs)
-//         p->certIDs.push_back(x);
+    for(auto x: b.certIDs)
+        p->certIDs.push_back(x);
 
-//     return *p;
-// }
+    return *p;
+}
 
 
 // // insert function
 
-// vector<string> insert(Proof p){
-//     if(!check.count({p.name, p.subject})){
-//         // add in check
-//         check[{p.name, p.subject}].insert(p);
+void insert(Proof p){
+    if(!check.count({p.name, p.subject})){
+        // add in check
+        check[{p.name, p.subject}].insert(p);
 
-//         // add in comaptible
-//         if(!p.subject.isPrincipal){
-//             compatibleAddPrefix(p);
+        // add in comaptible
+        if(!p.subject.isPrincipal){
+            compatibleAddPrefix(p);
 
-//             vector<vector<string>> prefixName = returnPrefix(p.subject.name.localNames);
+            vector<vector<string>> prefixName = returnPrefix(p.subject.name.localNames);
 
-//             unordered_set<Proof> setProofValue;
+            unordered_set<Proof> setProofValue;
 
-//             for(auto x: prefixName){
-//                 for(auto y: value[x])
-//                     setProofValue.insert(y);
-//             }
+            for(auto x: prefixName){
+                for(auto y: value[x])
+                    setProofValue.insert(y);
+            }
 
-//             for(auto x: setProofValue)
-//                 insert(compose(x, p));
-//         }
+            for(auto x: setProofValue)
+                insert(compose(x, p));
+        }
 
 
-//         else{
-//             // for isPrincipal true
+        else{
+            // for isPrincipal true
 
-//             // add in value
-//             value[p.name.localNames].insert(p);
+            // add in value
+            value[p.name.localNames].insert(p);
 
-//             unordered_set<Proof> setProofCompatible = compatible[p.name.localNames];
+            unordered_set<Proof> setProofCompatible = compatible[p.name.localNames];
 
-//             for(auto x: setProofCompatible)
-//                 insert(compose(x, p));            
-//         }
-//     }
-// }
+            for(auto x: setProofCompatible)
+                insert(compose(x, p));            
+        }
+    }
+}
 
 
 // // load value function
 
-// void loadValue(vector<string> name){
-//     // pick useful certs :: make proofs :: insert them :: return value[name] ::
-//     if(!loadedValue.count(name)){
-//         loadedValue.insert(name);
+void loadValue(vector<string> name){
+    // pick useful certs :: make proofs :: insert them :: return value[name] ::
+    if(!loadedValue.count(name)){
+        loadedValue.insert(name);
 
-//         for(auto x: certPool){
-//             if(x.second.name.localNames == name)
-//         }
+        unordered_set<Proof> setCertToProof;
 
-//     }
-// }
+        for(auto x: certPool){
+            if(x.second.name.localNames == name){
+                setCertToProof.insert(certToProof(x.second));
+            }
+        }
+
+        for(auto x: setCertToProof)
+            insert(x);
+    }
+}
 
 
 // // name resolution
 
-// vector<string> nameResolution(vector<string> name){
+unordered_set<Proof> nameResolution(vector<string> name){
+    loadValue(name);
 
-// }
+    return value[name];
+}
 
 
 int main() {
@@ -337,7 +387,15 @@ int main() {
         cout<<x.first<<" "<<x.second.name.issuer.key<<endl;
     }
 
+    unordered_set<Proof> res = nameResolution(certPool["cert1"].name.localNames);
 
+    cout<<value.size()<<endl;
+
+    for(auto x: res){
+        for(auto y: x.name.localNames)
+            cout<<y<<" ";
+        cout<<endl;
+    }
 
 
     return 0;
