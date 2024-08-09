@@ -189,6 +189,7 @@ void takeCertIpFromFile(Certificate* curr, const string& filePath) {
     for (int i = 0; i < nameSize; i++) {
         file >> lnName[i];
     }
+    curr->name.localNames = lnName;
 
     file >> iPSubject;
     curr->subject.isPrincipal = iPSubject;
@@ -201,15 +202,41 @@ void takeCertIpFromFile(Certificate* curr, const string& filePath) {
         curr->subject.name.issuer.key = pNameSubject;
 
         file >> lnSubjectSize;
+
         lnSubject.resize(lnSubjectSize);
         for (int i = 0; i < lnSubjectSize; i++) {
             file >> lnSubject[i];
         }
+
+        curr->subject.name.localNames = lnSubject;
     }
 
     file >> dBit;
 
     file.close();
+}
+
+void printCert(Certificate a){
+    cout<<a.certID<<endl;
+    
+    if(a.certType == NAME)  cout<<"NAME"<<endl;
+    else    cout<<"AUTH"<<endl;
+
+    cout<<a.name.issuer.key<<endl;
+    for(auto x: a.name.localNames)  cout<<x<<" ";
+    cout<<endl;
+
+    cout<<a.subject.isPrincipal<<endl;
+    if(a.subject.isPrincipal)   cout<<a.subject.principal.key<<endl;
+    else{
+        cout<<a.subject.name.issuer.key<<endl;
+        // cout<<"size: "<<a.subject.name.localNames.size()<<endl;
+        for(auto x: a.subject.name.localNames)  cout<<x<<" ";
+        cout<<endl;
+    }
+
+    cout<<a.delegationBit<<endl;
+    cout<<"------------------------------------"<<endl;
 }
 
 void processCertificatesFromFolder(const string& folderPath) {
@@ -226,7 +253,7 @@ void processCertificatesFromFolder(const string& folderPath) {
 }
 
 
-// // utility functions
+// utility functions
 
 void compatibleAddPrefix(Proof p){
     vector<string> temp;
@@ -308,6 +335,8 @@ Proof compose(Proof a, Proof b){
 }
 
 
+void loadValue(vector<string> name);
+
 // // insert function
 
 void insert(Proof p){
@@ -315,11 +344,24 @@ void insert(Proof p){
         // add in check
         check[{p.name, p.subject}].insert(p);
 
+        cout<<endl<<"insert: ";
+        for(auto x: p.name.localNames)
+            cout<<x<<" ";
+        cout<<":: ";
+        for(auto x: p.subject.name.localNames)  cout<<x<<" ";
+        cout<<p.subject.principal.key;
+        cout<<endl;
+
         // add in comaptible
         if(!p.subject.isPrincipal){
             compatibleAddPrefix(p);
 
             vector<vector<string>> prefixName = returnPrefix(p.subject.name.localNames);
+            
+            // loadValue(p.subject.name.localNames);
+
+            for(auto x: prefixName) 
+                loadValue(x);
 
             unordered_set<Proof> setProofValue;
 
@@ -329,12 +371,16 @@ void insert(Proof p){
             }
 
             for(auto x: setProofValue)
-                insert(compose(x, p));
+                insert(compose(p, x));
         }
 
 
         else{
             // for isPrincipal true
+            
+            cout<<"value: ";
+            for(auto x: p.name.localNames)  cout<<x<<" ";
+            cout<<": "<<p.subject.principal.key<<endl;
 
             // add in value
             value[p.name.localNames].insert(p);
@@ -359,6 +405,13 @@ void loadValue(vector<string> name){
 
         for(auto x: certPool){
             if(x.second.name.localNames == name){
+                cout<<"loadvalue: ";
+                for(auto x: name)   cout<<x<<" ";
+                cout<<":: ";
+                for(auto x: x.second.subject.name.localNames)   cout<<x<<" ";
+                cout<<x.second.subject.principal.key;
+                cout<<endl;
+
                 setCertToProof.insert(certToProof(x.second));
             }
         }
@@ -378,24 +431,51 @@ unordered_set<Proof> nameResolution(vector<string> name){
 }
 
 
-int main() {
-    
-    string folderPath = "/home/varn/Downloads/MTP/code/certChnDscvry/certs";
+int main(int argc, char* argv[]) {
+    // string temp = argv[0];
+
+    string folderPath = "/home/varn/Downloads/MTP/code/certChnDscvry/certs/testcase" + to_string(2);
     processCertificatesFromFolder(folderPath);
 
     for(auto x: certPool){
-        cout<<x.first<<" "<<x.second.name.issuer.key<<endl;
+        // cout<<x.first<<" "<<x.second.subject.isPrincipal<<endl;
+        printCert(x.second);
     }
+    cout<<endl;
 
-    unordered_set<Proof> res = nameResolution(certPool["cert1"].name.localNames);
+    string certUnderConsideration = "cert7";
 
-    cout<<value.size()<<endl;
+    unordered_set<Proof> res = nameResolution(certPool[certUnderConsideration].name.localNames);
 
+
+    cout<<"table size: ";
+    cout<<check.size()<<" ";
+    cout<<value.size()<<" ";
+    cout<<compatible.size()<<endl;
+
+    cout<<endl<<"name to be resolved: ";
+    for(auto x: certPool[certUnderConsideration].name.localNames){
+        cout<<x<<" ";
+    }
+    cout<<endl;
+    
+    cout<<"name resolution result: ";
     for(auto x: res){
-        for(auto y: x.name.localNames)
-            cout<<y<<" ";
-        cout<<endl;
+        cout<<x.subject.principal.key<<" ";
     }
+    cout<<endl;
+
+    // for(auto x: value){
+    //     cout<<x.second.size()<<endl;
+    // }
+
+    // cout<<"loaded vlaue: "<<loadedValue.size()<<endl;
+    // for(auto x: loadedValue){
+    //     for(auto y: x)
+    //         cout<<y<<" ";
+    //     cout<<endl;
+    // }
+    // cout<<endl;
 
 
     return 0;
