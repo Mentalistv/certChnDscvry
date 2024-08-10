@@ -82,12 +82,17 @@ namespace std {
     template <>
     struct hash<pair<Name, Subject>> {
         std::size_t operator()(const pair<Name, Subject>& p) const {
-            string temp = "";
-            for (const auto& x : p.first.localNames)
-                temp += x;
-            for (const auto& x : p.second.name.localNames)
-                temp += x;
-            return std::hash<string>()(temp);
+            size_t h1 = hash<string>()(p.first.issuer.key);
+            size_t h2 = 0;
+            for (const auto& s : p.first.localNames) {
+                h2 ^= hash<string>()(s) + 0x9e3779b9 + (h2 << 6) + (h2 >> 2);
+            }
+            size_t h3 = hash<string>()(p.second.isPrincipal ? p.second.principal.key : p.second.name.issuer.key);
+            size_t h4 = 0;
+            for (const auto& s : p.second.name.localNames) {
+                h4 ^= hash<string>()(s) + 0x9e3779b9 + (h4 << 6) + (h4 >> 2);
+            }
+            return h1 ^ (h2 << 1) ^ (h3 << 2) ^ (h4 << 3);
         }
     };
 }
@@ -263,6 +268,16 @@ void compatibleAddPrefix(Proof p){
         temp.push_back(name[i]);
 
         compatible[temp].insert(p);
+
+        cout<<"compatible: ";
+        for(auto x: temp)   cout<<x<<" ";
+        cout<<": ";
+        for(auto x: p.name.localNames)
+            cout<<x<<" ";
+        cout<<":: ";
+        for(auto x: p.subject.name.localNames)  cout<<x<<" ";
+        cout<<p.subject.principal.key;
+        cout<<endl;
     }
 }
 
@@ -314,7 +329,8 @@ Proof compose(Proof a, Proof b){
     else{
         p->subject.isPrincipal = false;
 
-        p->subject.name.localNames = b.subject.name.localNames;
+        if(!b.subject.isPrincipal) p->subject.name.localNames = b.subject.name.localNames;
+        else    p->subject.name.localNames.push_back(b.subject.principal.key);
 
         int nameSize = b.name.localNames.size();
         int subjectSize = a.subject.name.localNames.size();
@@ -331,6 +347,14 @@ Proof compose(Proof a, Proof b){
     for(auto x: b.certIDs)
         p->certIDs.push_back(x);
 
+
+
+    cout<<"composed: ";
+    for(auto x: p->name.localNames) cout<<x<<" ";
+    cout<<"-> ";
+    for(auto x: p->subject.name.localNames) cout<<x<<" ";
+    cout<<p->subject.principal.key<<endl;
+
     return *p;
 }
 
@@ -340,11 +364,17 @@ void loadValue(vector<string> name);
 // // insert function
 
 void insert(Proof p){
+    cout<<"insert initial: ";
+    for(auto x: p.name.localNames)  cout<<x<<" ";
+    cout<<"-> ";
+    for(auto x: p.subject.name.localNames)  cout<<x<<" ";
+    cout<<p.subject.principal.key<<endl;
+
     if(!check.count({p.name, p.subject})){
         // add in check
         check[{p.name, p.subject}].insert(p);
 
-        cout<<endl<<"insert: ";
+        cout<<endl<<"insert/check: ";
         for(auto x: p.name.localNames)
             cout<<x<<" ";
         cout<<":: ";
@@ -405,19 +435,25 @@ void loadValue(vector<string> name){
 
         for(auto x: certPool){
             if(x.second.name.localNames == name){
-                cout<<"loadvalue: ";
-                for(auto x: name)   cout<<x<<" ";
-                cout<<":: ";
-                for(auto x: x.second.subject.name.localNames)   cout<<x<<" ";
-                cout<<x.second.subject.principal.key;
-                cout<<endl;
-
                 setCertToProof.insert(certToProof(x.second));
             }
         }
 
-        for(auto x: setCertToProof)
+        cout<<"loadvalue: size:: ";
+        for(auto x: name)   cout<<x<<" ";
+            cout<<":: ";
+        cout<<setCertToProof.size()<<endl;
+
+        for(auto x: setCertToProof){
+            cout<<"loadvalue: ";
+            for(auto x: name)   cout<<x<<" ";
+            cout<<":: ";
+            for(auto y: x.subject.name.localNames)   cout<<y<<" ";
+            cout<<x.subject.principal.key;
+            cout<<endl;
+
             insert(x);
+        }
     }
 }
 
@@ -425,6 +461,10 @@ void loadValue(vector<string> name){
 // // name resolution
 
 unordered_set<Proof> nameResolution(vector<string> name){
+    cout<<"name res: ";
+    for(auto x: name)   cout<<x<<" ";
+    cout<<endl;
+
     loadValue(name);
 
     return value[name];
@@ -437,11 +477,11 @@ int main(int argc, char* argv[]) {
     string folderPath = "/home/varn/Downloads/MTP/code/certChnDscvry/certs/testcase" + to_string(2);
     processCertificatesFromFolder(folderPath);
 
-    for(auto x: certPool){
-        // cout<<x.first<<" "<<x.second.subject.isPrincipal<<endl;
-        printCert(x.second);
-    }
-    cout<<endl;
+    // for(auto x: certPool){
+    //     // cout<<x.first<<" "<<x.second.subject.isPrincipal<<endl;
+    //     printCert(x.second);
+    // }
+    // cout<<endl;
 
     string certUnderConsideration = "cert7";
 
@@ -476,6 +516,23 @@ int main(int argc, char* argv[]) {
     //     cout<<endl;
     // }
     // cout<<endl;
+
+    cout<<"==================check table=================="<<endl;
+    for(auto x: check){
+        cout<<"{";
+        for(auto a: x.first.first.localNames)   cout<<a<<" ";
+        cout<<", ";
+        for(auto a: x.first.second.name.localNames) cout<<a<<" ";
+        cout<<x.first.second.principal.key<<"} =>"<<endl;
+
+        for(auto y: x.second){
+            cout<<"\t";
+            for(auto a: y.name.localNames)  cout<<a<<" ";
+            cout<<"-> ";
+            for(auto a: y.subject.name.localNames)  cout<<a<<" ";
+            cout<<y.subject.principal.key<<endl;
+        }
+    }
 
 
     return 0;
