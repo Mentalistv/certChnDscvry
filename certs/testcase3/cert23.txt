@@ -1,0 +1,10 @@
+cert23
+AUTH
+K_Nescafe
+2
+K_Nescafe coffee
+0
+K_Nescafe
+2
+K_Nescafe Distributors
+1

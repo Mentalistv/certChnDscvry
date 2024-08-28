@@ -1,0 +1,9 @@
+cert1
+NAME
+KA
+2
+KA Bob
+1
+KB
+0
+

@@ -1,0 +1,11 @@
+cert4
+NAME
+KA
+2
+KA friends
+0
+KA
+2
+KA Bob
+0
+

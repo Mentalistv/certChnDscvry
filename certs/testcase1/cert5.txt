@@ -1,0 +1,13 @@
+cert5
+NAME
+issuerKey5
+3
+lineName1
+lineName2
+lineName3
+0
+subjectIssuerKey123
+2
+subjectLineName1
+subjectLineName2
+0

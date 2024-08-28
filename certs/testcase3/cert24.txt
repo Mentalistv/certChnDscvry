@@ -1,0 +1,10 @@
+cert24
+NAME
+K_Nescafe
+2
+K_Nescafe Customers
+0
+K_Nescafe
+4
+K_Nescafe Distributors Retailers Customers
+0

@@ -275,8 +275,8 @@ void insert(const Proof& p) {
             for (const auto& x : setProofValue) insert(compose(p, x));
         } else {
             value[p.name.localNames].insert(p);
-            reverseTable[p.subject.principal.key].insert(p);
 
+            reverseTable[p.subject.principal.key].insert(p);
             loadCompatible(p.name.localNames);
 
             unordered_set<Proof> setProofCompatible = compatible[p.name.localNames];
@@ -294,7 +294,12 @@ void loadCompatible(const vector<string>& name) {
         unordered_set<Proof> setCertToProof;
         
         for (const auto& x : certPool) {
-            vector<string> prefixName = {x.second.name.localNames.begin(), x.second.name.localNames.begin()+name.size()};
+            vector<string> prefixName;
+
+            if(x.second.subject.name.localNames.size() > name.size())
+                prefixName = {x.second.subject.name.localNames.begin(), x.second.subject.name.localNames.begin()+name.size()};
+            else
+                prefixName = x.second.subject.name.localNames;
 
             if (prefixName == name) {
                 setCertToProof.insert(certToProof(x.second));
@@ -331,18 +336,17 @@ int main(int argc, char* argv[]) {
 
     string certUnderConsideration = "cert13";
     // string principalUnderConsideration = certPool[certUnderConsideration].name.issuer.key;
-    string principalUnderConsideration = "KT";
+    string principalUnderConsideration = "KA";
 
     unordered_set<Proof> res = unresolution(principalUnderConsideration);
 
     cout<<"Unresolution for ";
-    cout<<certPool[certUnderConsideration].name.issuer.key<<": ";
-    cout<<res.size()<<endl;
+    cout<<certPool[certUnderConsideration].name.issuer.key<<": "<<endl;
     for(auto x: res){
         for(auto y: x.name.localNames)
             cout<<y<<" ";
+        cout<<endl;
     }
-    cout<<endl;
 
     return 0;
 }

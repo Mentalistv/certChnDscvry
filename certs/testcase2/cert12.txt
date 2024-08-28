@@ -1,0 +1,11 @@
+cert12
+NAME
+KB
+2
+KB my-friends
+0
+KB
+2
+KB Frank
+0
+

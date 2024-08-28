@@ -1,0 +1,10 @@
+cert20
+AUTH
+K_D1
+2
+K_D1 coffee
+0
+K_D1
+2
+K_D1 Retailers
+1

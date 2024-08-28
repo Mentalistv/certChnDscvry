@@ -1,0 +1,8 @@
+cert3
+NAME
+K_Nescafe
+2
+K_Nescafe Vending_Machine
+1
+K_VM3
+0

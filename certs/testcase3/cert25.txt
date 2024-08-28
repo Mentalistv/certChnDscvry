@@ -1,0 +1,10 @@
+cert25
+AUTH
+K_Nescafe
+2
+K_Nescafe coffee
+0
+K_Nescafe
+2
+K_Nescafe Customers
+0

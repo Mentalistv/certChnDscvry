@@ -1,0 +1,8 @@
+cert11
+NAME
+K_D2
+2
+K_D2 Retailers
+1
+K_R4
+0

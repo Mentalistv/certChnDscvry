@@ -297,11 +297,36 @@ unordered_set<Proof> nameResolution(const vector<string>& name) {
     return value[name];
 }
 
+
+void printCert(Certificate a){
+    // cout<<a.certID<<endl;
+    
+    if(a.certType == NAME)  cout<<"NAME: ";
+    else    cout<<"AUTH: ";
+
+    for(auto x: a.name.localNames)  cout<<x<<" ";
+    cout<<"-> ";
+
+    if(a.subject.isPrincipal)   cout<<a.subject.principal.key<<endl;
+    else{
+        for(auto x: a.subject.name.localNames)  cout<<x<<" ";
+        cout<<endl;
+    }
+
+    // cout<<a.delegationBit<<endl;
+}
+
 int main(int argc, char* argv[]) {
-    string folderPath = "/home/varn/Downloads/MTP/code/certChnDscvry/certs/testcase" + to_string(2);
+    string folderPath = "/home/varn/Downloads/MTP/code/certChnDscvry/certs/testcase" + to_string(3);
     processCertificatesFromFolder(folderPath);
 
-    string certUnderConsideration = "cert11";
+    for(auto x: certPool){
+        // cout<<x.first<<" "<<x.second.subject.isPrincipal<<endl;
+        printCert(x.second);
+    }
+    cout<<endl;
+
+    string certUnderConsideration = "cert23";
     unordered_set<Proof> res = nameResolution(certPool[certUnderConsideration].name.localNames);
 
     cout<<"Name Resolution for ";

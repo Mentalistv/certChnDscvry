@@ -1,0 +1,10 @@
+cert22
+AUTH
+K_R2
+2
+K_R2 coffee
+0
+K_R2
+2
+K_R2 Customers
+0

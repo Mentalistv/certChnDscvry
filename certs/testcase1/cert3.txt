@@ -1,0 +1,9 @@
+cert3
+NAME
+issuerKey3
+2
+subjectLineName11
+subjectLineName12
+1
+principal3
+0

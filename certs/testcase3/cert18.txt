@@ -1,0 +1,8 @@
+cert18
+NAME
+K_R2
+2
+K_R2 Customers
+1
+K_C5
+0
