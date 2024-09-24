@@ -474,7 +474,7 @@ unordered_set<Proof> nameResolution(vector<string> name){
 int main(int argc, char* argv[]) {
     // string temp = argv[0];
 
-    string folderPath = "/home/varn/Downloads/MTP/code/certChnDscvry/certs/testcase" + to_string(2);
+    string folderPath = "/home/varn/Downloads/certChnDscvry/certs/testcase" + to_string(2);
     processCertificatesFromFolder(folderPath);
 
     // for(auto x: certPool){

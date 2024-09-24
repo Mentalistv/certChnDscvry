@@ -316,8 +316,12 @@ void printCert(Certificate a){
     // cout<<a.delegationBit<<endl;
 }
 
+void printChain(Proof p){
+    for(auto x: p.certIDs)  printCert(certPool[x]);
+}
+
 int main(int argc, char* argv[]) {
-    string folderPath = "/home/varn/Downloads/MTP/code/certChnDscvry/certs/testcase" + to_string(3);
+    string folderPath = "/home/varn/Downloads/certChnDscvry/certs/testcase" + to_string(1);
     processCertificatesFromFolder(folderPath);
 
     for(auto x: certPool){
@@ -326,16 +330,19 @@ int main(int argc, char* argv[]) {
     }
     cout<<endl;
 
-    string certUnderConsideration = "cert23";
+    string certUnderConsideration = "cert2";
     unordered_set<Proof> res = nameResolution(certPool[certUnderConsideration].name.localNames);
+
+    cout<<"--------------------------------------------------------------------------------"<<endl<<endl;
 
     cout<<"Name Resolution for ";
     for(auto x: certPool[certUnderConsideration].name.localNames)   cout<<x<<" ";
-    cout<<": ";
+    cout<<":"<<endl<<endl;
     for(auto x: res){
-        cout<<x.subject.principal.key<<" ";
+        cout<<x.subject.principal.key<<endl;
+        printChain(x);
+        cout<<endl;
     }
-    cout<<endl;
 
     return 0;
 }

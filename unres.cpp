@@ -331,17 +331,17 @@ unordered_set<Proof> unresolution(const string k) {
 }
 
 int main(int argc, char* argv[]) {
-    string folderPath = "/home/varn/Downloads/MTP/code/certChnDscvry/certs/testcase" + to_string(2);
+    string folderPath = "/home/varn/Downloads/certChnDscvry/certs/testcase" + to_string(2);
     processCertificatesFromFolder(folderPath);
 
-    string certUnderConsideration = "cert13";
+    // string certUnderConsideration = "cert4";
     // string principalUnderConsideration = certPool[certUnderConsideration].name.issuer.key;
-    string principalUnderConsideration = "KA";
+    string principalUnderConsideration = "KC";
 
     unordered_set<Proof> res = unresolution(principalUnderConsideration);
 
     cout<<"Unresolution for ";
-    cout<<certPool[certUnderConsideration].name.issuer.key<<": "<<endl;
+    cout<<principalUnderConsideration<<": "<<endl;
     for(auto x: res){
         for(auto y: x.name.localNames)
             cout<<y<<" ";
