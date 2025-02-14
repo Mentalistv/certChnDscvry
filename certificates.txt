@@ -1,3 +1,4 @@
 KA Bob Hdsji BEHz -> KB
+KB Delta -> KT Hex	
 KA Charlie -> KB Delta [1]
-KB Delta -> KT Hex			
+KA Zulu -> KC Delta [0]
