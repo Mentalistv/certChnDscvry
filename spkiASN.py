@@ -1,11 +1,10 @@
 import os
-# import random
 import datetime
 import argparse
-from pyasn1.type import univ, namedtype, char, useful
-from pyasn1.codec.der import encoder
 import subprocess
 import base64
+from pyasn1.type import univ, namedtype, char, useful
+from pyasn1.codec.der import encoder
 
 
 # Define ASN.1 structures for SPKI Certificates
@@ -57,6 +56,7 @@ class AuthorizationCertificate(univ.Sequence):
         namedtype.NamedType('delegation', univ.Boolean())
     )
 
+
 # Helper Functions
 def generate_random_oid():
     """Generate a random OBJECT IDENTIFIER."""
@@ -84,18 +84,28 @@ def generate_spki_certificate(issuer, identifier, subject, is_auth=False, delega
     validity.setComponentByName('notBefore', not_before)
     validity.setComponentByName('notAfter', not_after)
 
+    # Create AlgorithmIdentifier
+    algorithm_id = AlgorithmIdentifier()
+    algorithm_id.setComponentByName('algorithm', generate_random_oid())
+
+    # Create PublicKeyInfo
     public_key_info = PublicKeyInfo()
-    public_key_info.setComponentByName('algorithm', generate_random_oid())
+    public_key_info.setComponentByName('algorithm', algorithm_id)  # FIXED
     public_key_info.setComponentByName('key', generate_random_key())
 
+    # Create Signature
+    signature_algo = AlgorithmIdentifier()
+    signature_algo.setComponentByName('algorithm', generate_random_oid())
+
     signature = Signature()
-    signature.setComponentByName('algorithm', generate_random_oid())
+    signature.setComponentByName('algorithm', signature_algo)  # FIXED
     signature.setComponentByName('signatureValue', generate_random_signature())
 
-    if is_auth:  # Authorization Certificate
+    # Determine certificate type
+    if is_auth:
         cert = AuthorizationCertificate()
         cert.setComponentByName('delegation', delegation)
-    else:  # Name Certificate
+    else:
         cert = NameCertificate()
 
     cert.setComponentByName('version', 1)
@@ -106,148 +116,60 @@ def generate_spki_certificate(issuer, identifier, subject, is_auth=False, delega
     cert.setComponentByName('publicKey', public_key_info)
     cert.setComponentByName('signature', signature)
     
-    # print(encoder.encode(cert))
-
     return encoder.encode(cert)
 
-def generate_spki_asn1(issuer, identifier, subject, is_auth=False, delegation=False):
-    """Generate an SPKI certificate in ASN.1 format."""
-    not_before = datetime.datetime.now(datetime.UTC).strftime("%y%m%d%H%M%SZ")
-    not_after = (datetime.datetime.now(datetime.UTC) + datetime.timedelta(days=365)).strftime("%y%m%d%H%M%SZ")
-    
-    asn1_template = f"""
-[default]
-asn1 = SEQUENCE:spki_cert
-
-[spki_cert]
-version = INTEGER:1
-issuer = PRINTABLESTRING:"{issuer}"
-identifier = PRINTABLESTRING:"{identifier}"
-subject = PRINTABLESTRING:"{subject}"
-validity = SEQUENCE:validity_section
-publicKey = SEQUENCE:public_key_section
-signature = SEQUENCE:signature_section
-"""
-
-    if is_auth:
-        asn1_template += f"""delegation = BOOLEAN:{str(delegation).upper()}
-"""
-
-    asn1_template += f"""
-[validity_section]
-notBefore = UTCTIME:"{not_before}"
-notAfter = UTCTIME:"{not_after}"
-
-[public_key_section]
-algorithm = OBJECT:1.2.840.113549.1.1.1
-key = BITSTRING:1010101010101010B
-
-[signature_section]
-algorithm = OBJECT:1.2.840.113549.1.1.11
-signatureValue = BITSTRING:1111000011110000B
-"""
-
-    return asn1_template
-
-def generate_x509_config(spki_asn1):    
-    encoded_spki = spki_asn1.encode("ascii")
-
-    base64_bytes = base64.b64encode(encoded_spki)
-    base64_string = base64_bytes.decode("ascii")
-    
-    """Generate an SPKI certificate in ASN.1 format."""
-    
-    config_template = f"""
-[ req ]
-default_bits        = 2048
-default_md          = sha256
-prompt             = no
-distinguished_name = dn
-x509_extensions    = v3_ext  # Extensions for self-signed certificate
-req_extensions     = v3_ext  # Extensions for CSR
-
-[ dn ]
-C  = IN
-ST = Maharashtra
-L  = Mumbai
-O  = MyOrganization
-OU = MyUnit
-CN = mydomain.com
-emailAddress = admin@mydomain.com
-
-[ v3_ext ]
-# Standard Extensions
-subjectAltName        = @alt_names
-basicConstraints      = critical,CA:FALSE
-keyUsage              = critical,digitalSignature, keyEncipherment
-extendedKeyUsage      = serverAuth,clientAuth
-subjectKeyIdentifier  = hash  # Generates a unique identifier for the subject
-
-# Custom Extension (String Data)
-1.2.3.4.5.6 = ASN1:UTF8String: "{base64_string}"
-
-[ alt_names ]
-DNS.1 = mydomain.com
-DNS.2 = www.mydomain.com
-IP.1  = 192.168.1.1
-"""
-
-    return config_template
-
-def save_asn1_to_der(asn1_data, output_file):
-    """Save ASN.1 to a DER encoded file using OpenSSL."""
-    asn1_file = output_file.replace(".der", ".asn1")
-
-    # Ensure directory exists
-    os.makedirs(os.path.dirname(asn1_file), exist_ok=True)
-    
-    with open(asn1_file, "w") as f:
-        f.write(asn1_data)
+def save_asn1_to_der(asn1_encoded, der_file):
+    """Save ASN.1 encoded certificate to a DER file."""
+    os.makedirs(os.path.dirname(der_file), exist_ok=True)
         
-    # output_file = output_file.replace(" ", "")
-    
-    cmd = f"openssl asn1parse -genconf {asn1_file} -out {output_file}"
-    subprocess.run(cmd, shell=True, check=True)
-    
-    os.remove(asn1_file)  # Cleanup ASN.1 file
-    print(f"Saved ASN.1 DER: {output_file}")
+    with open(der_file, "wb") as f:
+        f.write(asn1_encoded)
 
-def generate_x509_certificate(issuer, subject, output_folder, spki_asn1):
+def convert_der_to_base64(der_file):
+    """Convert DER file to Base64 encoded string."""
+    with open(der_file, "rb") as f:
+        der_data = f.read()
+    return base64.b64encode(der_data).decode("utf-8")
+
+
+# generate X.509 certificate and make use of the extension to embed the SPKI certificate
+def generate_x509_certificate(issuer, subject, output_folder, spki_b64):
     """Generate an X.509 certificate and embed the SPKI certificate as an extension using OpenSSL."""
-    key_file = os.path.join(output_folder, f"{subject}_key.key")
-    cert_file = os.path.join(output_folder, f"{subject}_cert.pem")
-    # ext_file = os.path.join(output_folder, f"{subject}_ext.cnf")
+    key_file = os.path.join(output_folder, f"{issuer}_key.key")
+    cert_file = os.path.join(output_folder, f"{issuer}_{subject}_cert.pem")
+    cnf_file = os.path.join(output_folder, f"{subject}_ext.cnf")
 
-    # Ensure output directory exists
     os.makedirs(output_folder, exist_ok=True)
 
     # Generate RSA key
     subprocess.run(f"openssl genpkey -algorithm RSA -out {key_file} -pkeyopt rsa_keygen_bits:2048", shell=True, check=True)
 
-    # Generate CSR (Certificate Signing Request)
-    csr_file = os.path.join(output_folder, f"{issuer}_{subject}.csr")
-    cnf_file = os.path.join(output_folder, f"{issuer}_{subject}.cnf")
-    
-    config_template = generate_x509_config(spki_asn1)
+    # Create OpenSSL extension configuration
+    config_template = f"""
+[req]
+distinguished_name = req_distinguished_name
+x509_extensions = v3_ext
+prompt = no
+
+[req_distinguished_name]
+CN = {subject}
+
+[v3_ext]
+1.2.3.4.5.6 = ASN1:UTF8String:{spki_b64}
+"""
     with open(cnf_file, "w") as f:
         f.write(config_template)
-    
-    subprocess.run(
-        f"openssl req -new -key {key_file} -out {csr_file} -config {cnf_file}",
-        shell=True, check=True
-    )
 
-    # Generate X.509 certificate with SPKI extension
+    # Generate self-signed X.509 certificate
     subprocess.run(
-        f"openssl x509 -req -in {csr_file} -signkey {key_file} -out {cert_file} -days 365 -extfile {cnf_file} -extensions v3_ext",
+        f"openssl req -new -x509 -key {key_file} -out {cert_file} -days 365 -config {cnf_file}",
         shell=True, check=True
     )
 
     print(f"Saved X.509 Certificate: {cert_file}")
-    
-    # Cleaning extra files
-    os.remove(csr_file) # delete csr file 
-    os.remove(cnf_file) # delete cnf file 
+
+    os.remove(cnf_file)  # Clean up extension file
+
 
 def parse_certificate_file(file_path, output_folder):
     """Parse the input .txt file and generate X.509 certificates embedding SPKI."""
@@ -260,31 +182,27 @@ def parse_certificate_file(file_path, output_folder):
             continue
 
         parts = line.split('->')
-        
-        leftHandSide = parts[0].strip()
-        issuer = leftHandSide.split(' ')[0].strip()
-        identifier = ' '.join(leftHandSide.split()[1:]).strip()
-        
+        issuer = parts[0].split()[0].strip()
+        identifier = ' '.join(parts[0].split()[1:]).strip()
         rest = parts[1].strip()
-        
-        ### MOD
 
         if '[' in rest and ']' in rest:  # Authorization Certificate
             subject, delegation_bit = rest.split('[')
+            subject = subject.strip()
             subject = subject.replace(" ", "")
             delegation = bool(int(delegation_bit.strip('[]')))
-            # identifier = "AuthCert"
-            spki_asn1 = generate_spki_asn1(issuer, identifier, subject.strip(), is_auth=True, delegation=delegation)
-            spki_der_file = os.path.join(output_folder, f"{subject.strip()}_auth.der")
+            spki_asn1 = generate_spki_certificate(issuer, identifier, subject, is_auth=True, delegation=delegation)
         else:  # Name Certificate
-            subject = rest
+            subject = rest.strip()
             subject = subject.replace(" ", "")
-            spki_asn1 = generate_spki_asn1(issuer, identifier.strip(), subject.strip())
-            spki_der_file = os.path.join(output_folder, f"{subject.strip()}_name.der")
-            
-        # generate_spki_certificate(issuer, identifier, subject, is_auth=False, delegation=False)
-        save_asn1_to_der(spki_asn1, spki_der_file)
-        generate_x509_certificate(issuer, subject.strip(), output_folder, spki_asn1)
+            spki_asn1 = generate_spki_certificate(issuer, identifier, subject)
+
+        der_file = os.path.join(output_folder, f"{subject}.der")
+        save_asn1_to_der(spki_asn1, der_file)
+        spki_b64 = convert_der_to_base64(der_file)
+
+        generate_x509_certificate(issuer, subject, output_folder, spki_b64)
+
 
 # Command-line Argument Handling
 if __name__ == "__main__":
