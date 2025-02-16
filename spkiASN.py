@@ -1,5 +1,5 @@
 import os
-import random
+# import random
 import datetime
 import argparse
 from pyasn1.type import univ, namedtype, char, useful
@@ -105,6 +105,8 @@ def generate_spki_certificate(issuer, identifier, subject, is_auth=False, delega
     cert.setComponentByName('validity', validity)
     cert.setComponentByName('publicKey', public_key_info)
     cert.setComponentByName('signature', signature)
+    
+    # print(encoder.encode(cert))
 
     return encoder.encode(cert)
 
@@ -144,18 +146,10 @@ key = BITSTRING:1010101010101010B
 algorithm = OBJECT:1.2.840.113549.1.1.11
 signatureValue = BITSTRING:1111000011110000B
 """
-    
-    # print("########################################################################")
-    # print(asn1_template)
-    # print("########################################################################")
 
     return asn1_template
 
-def generate_x509_config(spki_asn1):
-    # print("#########################GENERATE SPKI CERTS###############################################")
-    # print(encoded_spki)
-    # print("########################################################################")
-    
+def generate_x509_config(spki_asn1):    
     encoded_spki = spki_asn1.encode("ascii")
 
     base64_bytes = base64.b64encode(encoded_spki)
@@ -218,8 +212,7 @@ def save_asn1_to_der(asn1_data, output_file):
     os.remove(asn1_file)  # Cleanup ASN.1 file
     print(f"Saved ASN.1 DER: {output_file}")
 
-
-def generate_x509_certificate(spki_der_file, issuer, subject, output_folder, spki_asn1):
+def generate_x509_certificate(issuer, subject, output_folder, spki_asn1):
     """Generate an X.509 certificate and embed the SPKI certificate as an extension using OpenSSL."""
     key_file = os.path.join(output_folder, f"{subject}_key.key")
     cert_file = os.path.join(output_folder, f"{subject}_cert.pem")
@@ -252,8 +245,9 @@ def generate_x509_certificate(spki_der_file, issuer, subject, output_folder, spk
 
     print(f"Saved X.509 Certificate: {cert_file}")
     
-    os.remove(csr_file)
-    os.remove(cnf_file)
+    # Cleaning extra files
+    os.remove(csr_file) # delete csr file 
+    os.remove(cnf_file) # delete cnf file 
 
 def parse_certificate_file(file_path, output_folder):
     """Parse the input .txt file and generate X.509 certificates embedding SPKI."""
@@ -288,9 +282,9 @@ def parse_certificate_file(file_path, output_folder):
             spki_asn1 = generate_spki_asn1(issuer, identifier.strip(), subject.strip())
             spki_der_file = os.path.join(output_folder, f"{subject.strip()}_name.der")
             
-
+        # generate_spki_certificate(issuer, identifier, subject, is_auth=False, delegation=False)
         save_asn1_to_der(spki_asn1, spki_der_file)
-        generate_x509_certificate(spki_der_file, issuer, subject.strip(), output_folder, spki_asn1)
+        generate_x509_certificate(issuer, subject.strip(), output_folder, spki_asn1)
 
 # Command-line Argument Handling
 if __name__ == "__main__":
