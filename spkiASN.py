@@ -35,7 +35,7 @@ class Signature(univ.Sequence):
 
 class NameCertificate(univ.Sequence):
     componentType = namedtype.NamedTypes(
-        namedtype.NamedType('version', univ.Integer()),
+        # namedtype.NamedType('version', univ.Integer()),
         namedtype.NamedType('issuer', char.PrintableString()),
         namedtype.NamedType('identifier', char.PrintableString()),
         namedtype.NamedType('subject', char.PrintableString()),
@@ -46,7 +46,7 @@ class NameCertificate(univ.Sequence):
 
 class AuthorizationCertificate(univ.Sequence):
     componentType = namedtype.NamedTypes(
-        namedtype.NamedType('version', univ.Integer()),
+        # namedtype.NamedType('version', univ.Integer()),
         namedtype.NamedType('issuer', char.PrintableString()),
         namedtype.NamedType('identifier', char.PrintableString()), # called "tag"
         namedtype.NamedType('subject', char.PrintableString()),
@@ -108,7 +108,7 @@ def generate_spki_certificate(issuer, identifier, subject, is_auth=False, delega
     else:
         cert = NameCertificate()
 
-    cert.setComponentByName('version', 1)
+    # cert.setComponentByName('version', 1)
     cert.setComponentByName('issuer', issuer)
     cert.setComponentByName('identifier', identifier)
     cert.setComponentByName('subject', subject)
