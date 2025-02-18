@@ -135,11 +135,17 @@ def convert_der_to_base64(der_file):
 # generate X.509 certificate and make use of the extension to embed the SPKI certificate
 def generate_x509_certificate(issuer, subject, output_folder, spki_b64):
     """Generate an X.509 certificate and embed the SPKI certificate as an extension using OpenSSL."""
-    key_file = os.path.join(output_folder, f"{issuer}_key.key")
-    cert_file = os.path.join(output_folder, f"{issuer}_{subject}_cert.pem")
+    key_folder = os.path.join(output_folder, f"keys")
+    cert_folder = os.path.join(output_folder, f"certs")
+    
+    key_file = os.path.join(key_folder, f"{issuer}_key.key")
+    cert_file = os.path.join(cert_folder, f"{issuer}_{subject}_cert.pem")
     cnf_file = os.path.join(output_folder, f"{subject}_ext.cnf")
 
     os.makedirs(output_folder, exist_ok=True)
+    
+    os.makedirs(key_folder, exist_ok=True)
+    os.makedirs(cert_folder, exist_ok=True)
 
     # Generate RSA key
     subprocess.run(f"openssl genpkey -algorithm RSA -out {key_file} -pkeyopt rsa_keygen_bits:2048", shell=True, check=True)
@@ -189,16 +195,19 @@ def parse_certificate_file(file_path, output_folder):
         if '[' in rest and ']' in rest:  # Authorization Certificate
             subject, delegation_bit = rest.split('[')
             subject = subject.strip()
-            subject = subject.replace(" ", "")
+            subject = subject.replace(" ", "#")
             delegation = bool(int(delegation_bit.strip('[]')))
             spki_asn1 = generate_spki_certificate(issuer, identifier, subject, is_auth=True, delegation=delegation)
         else:  # Name Certificate
             subject = rest.strip()
-            subject = subject.replace(" ", "")
+            subject = subject.replace(" ", "#")
             spki_asn1 = generate_spki_certificate(issuer, identifier, subject)
 
-        der_file = os.path.join(output_folder, f"{subject}.der")
+        der_folder = os.path.join(output_folder, f"ders")
+        os.makedirs(der_folder, exist_ok=True)
+        der_file = os.path.join(der_folder, f"{subject}.der")
         save_asn1_to_der(spki_asn1, der_file)
+        
         spki_b64 = convert_der_to_base64(der_file)
 
         generate_x509_certificate(issuer, subject, output_folder, spki_b64)
