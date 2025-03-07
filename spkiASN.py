@@ -129,7 +129,9 @@ def convert_der_to_base64(der_file):
     """Convert DER file to Base64 encoded string."""
     with open(der_file, "rb") as f:
         der_data = f.read()
-    return base64.b64encode(der_data).decode("utf-8")
+        
+    res = base64.b64encode(der_data).decode("utf-8")
+    return res
 
 
 # generate X.509 certificate and make use of the extension to embed the SPKI certificate
