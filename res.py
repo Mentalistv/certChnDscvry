@@ -77,15 +77,25 @@ compatible = defaultdict(set)
 cert_pool = {}
 loaded_value = set()
 
+# in cpp
+# unordered_map<pair<Name, Subject>, unordered_set<Proof>> check;
+# unordered_map<vector<string>, unordered_set<Proof>> value;
+# unordered_map<vector<string>, unordered_set<Proof>> compatible;
+# unordered_map<string, Certificate> certPool;
+# unordered_set<vector<string>> loadedValue;
+
 # reads certs fron the folder
 def parse_certificate(file_path):
     with open(file_path, 'r', encoding="utf-8") as file:
         lines = file.readlines()
     
     issuer = lines[1].strip().split(':')[-1].strip()
-    local_name = lines[2].strip().split(':')[-1].strip()
+    local_name = issuer + " "
+    local_name += lines[2].strip().split(':')[-1].strip()
+    
     subject_issuer = lines[3].strip().split(':')[-1].strip().split('#')[0].strip()
-    subject_local_name = ' '.join(lines[3].strip().split(':')[-1].strip().replace('#', ' ').strip().split()[1:])
+    subject_local_name = subject_issuer + " "
+    subject_local_name += ' '.join(lines[3].strip().split(':')[-1].strip().replace('#', ' ').strip().split()[1:])
     
     last_line = lines[-2].strip()
     cert_type = "AUTH" if "BOOLEAN" in last_line else "NAME"
@@ -94,7 +104,12 @@ def parse_certificate(file_path):
     cert_id = str(uuid.uuid4())
     issuer_principal = Principal(issuer)
     name = Name(issuer_principal, local_name)
-    subject = Subject(False, name=Name(Principal(subject_issuer), subject_local_name))
+    
+    if("#" in lines[3]):
+        subject = Subject(False, name=Name(Principal(subject_issuer), subject_local_name))
+    else:
+        subject_principal = Principal(subject_issuer)
+        subject = Subject(True, principal=subject_principal)
         
     cert = Certificate(cert_id, cert_type, name, subject, delegation_bit)
     
@@ -107,68 +122,103 @@ def load_certificates_from_folder(folder_path):
             cert = parse_certificate(file_path)
             cert_pool[cert.cert_id] = cert
 
+# add the proof to the compatible hash table
+# def compatible_add_prefix(proof):
+    # temp = []
+    # for name in proof.subject.name.local_names:
+    #     temp.append(name)
+    #     compatible[tuple(temp)].add(proof)
 
-def compatible_add_prefix(proof):
-    temp = []
-    for name in proof.subject.name.local_names:
-        temp.append(name)
-        compatible[tuple(temp)].add(proof)
-
+# return the prefixes of the name
 def return_prefix(name):
-    res, temp = [], []
-    for part in name:
-        temp.append(part)
-        res.append(temp.copy())
-    return res
+    words = name.split()
+    return [' '.join(words[:i]) for i in range(1, len(words) + 1)]
 
+# convert certificate to proof
 def cert_to_proof(cert):
     return Proof(cert.name, cert.subject, [cert.cert_id], cert.delegation_bit)
 
+# compose two proofs
 def compose(proof_a, proof_b):
-    p = Proof(Name(Principal("composed"), proof_a.name.local_names), None, proof_a.cert_ids + proof_b.cert_ids)
+    p = Proof(Name(proof_a.name.issuer, proof_a.name.local_names), Subject(False, Principal(""), Name(Principal(""), "")), proof_a.cert_ids + proof_b.cert_ids, proof_a.delegation_bit)
+    
+    print("compose() :: Composing proofs with names:", proof_a.name.local_names, "->", proof_a.subject.name.local_names, " and ", proof_b.name.local_names, "->", proof_b.subject.principal.key if proof_b.subject.is_principal else proof_b.subject.name.local_names)
+    
     if proof_a.subject.name.local_names == proof_b.name.local_names:
-        p.subject = proof_b.subject
+        if(proof_b.subject.is_principal):
+            p.subject.is_principal = True
+            p.subject.principal = proof_b.subject.principal
+        else:
+            p.subject.is_principal = False
+            p.subject = proof_b.subject
     else:
-        p.subject = Subject(name=Name(Principal(""), proof_b.subject.name.local_names + proof_a.subject.name.local_names[len(proof_b.name.local_names):]))
+        p.subject.is_principal = False
+        
+        if(not proof_b.subject.is_principal):
+            p.subject = Subject(name=Name(Principal(proof_b.subject.name.issuer), proof_b.subject.name.local_names))
+        else:
+            p.subject.name.local_names += proof_b.subject.principal.key
+            
+        p.subject.name.local_names += proof_a.subject.name.local_names[len(proof_b.name.local_names):]
+        p.subject.name.issuer = Principal("composed")
+        
+        # p.subject = Subject(name=Name(Principal(""), proof_b.subject.name.local_names + proof_a.subject.name.local_names[len(proof_b.name.local_names):]))
+        
     return p
 
+# insert the proof into the hash tables
 def insert(proof):
     key = (proof.name, proof.subject)
+    
+    print("insert() :: Inserting proof with name:", proof.name.local_names, "->", proof.subject.principal.key if proof.subject.is_principal else proof.subject.name.local_names)
+    
     if key not in check:
         check[key].add(proof)
+        
         if not proof.subject.is_principal:
-            compatible_add_prefix(proof)
+            # compatible_add_prefix(proof)
+            
             for prefix in return_prefix(proof.subject.name.local_names):
+                compatible[prefix].add(proof)
                 load_value(prefix)
-                for other_proof in value[tuple(prefix)]:
+                for other_proof in value[prefix]:
                     insert(compose(proof, other_proof))
         else:
-            value[tuple(proof.name.local_names)].add(proof)
-            for comp_proof in compatible[tuple(proof.name.local_names)]:
+            str = proof.name.local_names
+            
+            value[str].add(proof)
+            
+            for comp_proof in compatible[str]:
                 insert(compose(comp_proof, proof))
 
+# load the certifcates 
 def load_value(name):
-    if tuple(name) not in loaded_value:
-        loaded_value.add(tuple(name))
+    if name not in loaded_value:
+        loaded_value.add(name)
+        
+        print(f"load_value() :: Loading value for {name}")
+        
         for cert in cert_pool.values():
             if cert.name.local_names == name:
                 insert(cert_to_proof(cert))
 
-
-# // MOD ::  made name string
+# name resolution algorithm
 def name_resolution(name):
+    print(f"name_resolution() :: Resolving name: {name}")
+    
     load_value(name)
     return value[name]
 
+# print the certificates in the rewrite format
 def print_cert(cert):
-    issuer_key = cert.name.issuer.key if isinstance(cert.name.issuer, Principal) else cert.name.issuer
     subject = (
         cert.subject.principal.key 
         if cert.subject.is_principal 
-        else f"{cert.subject.name.issuer.key if isinstance(cert.subject.name.issuer, Principal) else cert.subject.name.issuer} {cert.subject.name.local_names}"
+        else cert.subject.name.local_names
     )
-    print(f"{cert.cert_type}: {issuer_key} {cert.name.local_names} -> {subject}")
+    print(f"{cert.cert_type}: {cert.name.local_names} -> {subject}")
 
+# prints the chain of certificates
 def print_chain(proof):
     for cert_id in proof.cert_ids:
         print_cert(cert_pool[cert_id])
@@ -181,20 +231,22 @@ if __name__ == "__main__":
     folder_path = sys.argv[1]
     load_certificates_from_folder(folder_path)
     
+    print("------------------------------ Certificates Loaded ------------------------------\n")
+    
     for cert in cert_pool.values():
         print_cert(cert)
         
-    print("\n--------------------------------------------------------------------------------\n")
+    print("\n----------------------------------------------------------------------------------\n")
     
     name_under_consideration = input("Enter the certificate ID to resolve: ")
     
     res = name_resolution(name_under_consideration)
     print(f"Name Resolution for {name_under_consideration}:")
     
-    # print(len(res))
+    print(len(res))
         
     
     for proof in res:
-        print(proof.subject.principal.key if proof.subject.is_principal else ' '.join(proof.subject.name.issuer.key, proof.subject.name.local_names))
-        # print_chain(proof)
-        # print()
+        print(proof.subject.principal.key if proof.subject.is_principal else ' '.join(proof.subject.name.issuer, proof.subject.name.local_names))
+        print_chain(proof)
+        print()
