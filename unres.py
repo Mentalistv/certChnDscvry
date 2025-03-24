@@ -77,12 +77,21 @@ compatible = defaultdict(set)
 cert_pool = {}
 loaded_value = set()
 
+reverse_table = defaultdict(set)
+loaded_compatible = set()
+loaded_reverse = set()
+
+
 # in cpp
 # unordered_map<pair<Name, Subject>, unordered_set<Proof>> check;
 # unordered_map<vector<string>, unordered_set<Proof>> value;
 # unordered_map<vector<string>, unordered_set<Proof>> compatible;
 # unordered_map<string, Certificate> certPool;
 # unordered_set<vector<string>> loadedValue;
+
+# unordered_map<string, unordered_set<Proof>> reverseTable;
+# unordered_set<vector<string>> loadedCompatible;
+# unordered_set<string> loadedReverse;
 
 # reads certs fron the folder
 def parse_certificate(file_path):
@@ -180,34 +189,57 @@ def insert(proof):
             
             for prefix in return_prefix(proof.subject.name.local_names):
                 compatible[prefix].add(proof)
-                load_value(prefix)
+                # load_value(prefix)
                 for other_proof in value[prefix]:
                     insert(compose(proof, other_proof))
         else:
             str = proof.name.local_names
             
             value[str].add(proof)
+            reverse_table[proof.subject.principal.key].add(proof)
+            
+            load_compatible(str)
             
             for comp_proof in compatible[str]:
                 insert(compose(comp_proof, proof))
+                
+            load_reverse(proof.name.issuer)
 
-# load the certifcates 
-def load_value(name):
-    if name not in loaded_value:
-        loaded_value.add(name)
-        
-        print(f"load_value() :: Loading value for {name}")
+def load_compatible(name):
+    if name not in loaded_compatible:
+        loaded_compatible.add(name)
         
         for cert in cert_pool.values():
-            if cert.name.local_names == name:
-                insert(cert_to_proof(cert))
+            prefix_name = ""
+            
+            if not cert.subject.is_principal:
+                if len(cert.subject.name.local_names) > len(name):
+                    prefix_name = cert.subject.name.local_names[:len(name)]
+                else:
+                    prefix_name = cert.subject.name.local_names
+
+                if prefix_name == name:
+                    insert(cert_to_proof(cert))
+        
+
+# load the certifcates 
+def load_reverse(name):
+    if name not in loaded_reverse:
+        loaded_reverse.add(name)
+        
+        print(f"load_reverse() :: Loading value for {name}")
+        
+        for cert in cert_pool.values():
+            if cert.subject.is_principal:
+                if cert.subject.principal.key == str(name):
+                    insert(cert_to_proof(cert))
 
 # name resolution algorithm
-def name_resolution(name):
-    print(f"\nname_resolution() :: Resolving name: {name}")
+def name_unresolution(name):
+    print(f"\nname_unresolution() :: Resolving name: {name}")
     
-    load_value(name)
-    return value[name]
+    load_reverse(name)
+    return reverse_table[name]
 
 # print the certificates in the rewrite format
 def print_cert(cert):
@@ -238,15 +270,14 @@ if __name__ == "__main__":
         
     print("\n----------------------------------------------------------------------------------\n")
     
-    name_under_consideration = input("Enter the certificate ID to resolve: ")
+    principal_under_consideration = input("Enter the Principal to resolve: ")
     
-    res = name_resolution(name_under_consideration)
-    print(f"\nName Resolution for {name_under_consideration}:")
+    res = name_unresolution(principal_under_consideration)
+    print(f"Name Unresolution for {principal_under_consideration}:")
     
     print(len(res))
-        
     
     for proof in res:
-        print(proof.subject.principal.key if proof.subject.is_principal else ' '.join(proof.subject.name.issuer, proof.subject.name.local_names))
+        print(proof.name.local_names)
         print_chain(proof)
         print()
