@@ -122,17 +122,10 @@ def load_certificates_from_folder(folder_path):
             cert = parse_certificate(file_path)
             cert_pool[cert.cert_id] = cert
 
-# add the proof to the compatible hash table
-# def compatible_add_prefix(proof):
-    # temp = []
-    # for name in proof.subject.name.local_names:
-    #     temp.append(name)
-    #     compatible[tuple(temp)].add(proof)
-
 # return the prefixes of the name
 def return_prefix(name):
     words = name.split()
-    return [' '.join(words[:i]) for i in range(1, len(words) + 1)]
+    return [' '.join(words[:i]) for i in range(1, len(words) + 1)][1:]
 
 # convert certificate to proof
 def cert_to_proof(cert):
@@ -162,26 +155,31 @@ def compose(proof_a, proof_b):
         p.subject.name.local_names += proof_a.subject.name.local_names[len(proof_b.name.local_names):]
         p.subject.name.issuer = Principal("composed")
         
-        # p.subject = Subject(name=Name(Principal(""), proof_b.subject.name.local_names + proof_a.subject.name.local_names[len(proof_b.name.local_names):]))
-        
     return p
 
 # insert the proof into the hash tables
 def insert(proof):
     key = (proof.name, proof.subject)
     
-    print("insert() :: Inserting proof with name:", proof.name.local_names, "->", proof.subject.principal.key if proof.subject.is_principal else proof.subject.name.local_names)
-    
+    print("insert() :: called")
+        
     if key not in check:
+        print("insert() :: Inserting proof with name:", proof.name.local_names, "->", proof.subject.principal.key if proof.subject.is_principal else proof.subject.name.local_names)
         check[key].add(proof)
+        
         
         if not proof.subject.is_principal:
             # compatible_add_prefix(proof)
+            prefix = return_prefix(proof.name.local_names)
             
-            for prefix in return_prefix(proof.subject.name.local_names):
-                compatible[prefix].add(proof)
-                load_value(prefix)
-                for other_proof in value[prefix]:
+            for p in prefix:
+                compatible[p].add(proof)
+                
+            for p in prefix:
+                load_value(p)
+            
+            for p in prefix:
+                for other_proof in value[p]:
                     insert(compose(proof, other_proof))
         else:
             str = proof.name.local_names
@@ -196,7 +194,7 @@ def load_value(name):
     if name not in loaded_value:
         loaded_value.add(name)
         
-        print(f"load_value() :: Loading value for {name}")
+        print(f"load_value() :: Loading certificates for {name}")
         
         for cert in cert_pool.values():
             if cert.name.local_names == name:
@@ -231,7 +229,7 @@ if __name__ == "__main__":
     folder_path = sys.argv[1]
     load_certificates_from_folder(folder_path)
     
-    print("------------------------------ Certificates Loaded ------------------------------\n")
+    print("------------------------------ Certificates Loaded -------------------------------\n")
     
     for cert in cert_pool.values():
         print_cert(cert)
