@@ -170,7 +170,7 @@ def insert(proof):
         
         if not proof.subject.is_principal:
             # compatible_add_prefix(proof)
-            prefix = return_prefix(proof.name.local_names)
+            prefix = return_prefix(proof.subject.name.local_names)
             
             for p in prefix:
                 compatible[p].add(proof)
