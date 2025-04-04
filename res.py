@@ -165,12 +165,12 @@ def insert(proof):
         
     if key not in check:
         print("insert() :: Inserting proof with name:", proof.name.local_names, "->", proof.subject.principal.key if proof.subject.is_principal else proof.subject.name.local_names)
-        check[key].add(proof)
         
+        check[key].add(proof)        
         
         if not proof.subject.is_principal:
-            # compatible_add_prefix(proof)
-            prefix = return_prefix(proof.name.local_names)
+            prefix = return_prefix(proof.subject.name.local_names)
+            print(prefix)
             
             for p in prefix:
                 compatible[p].add(proof)
