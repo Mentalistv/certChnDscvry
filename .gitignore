@@ -7,3 +7,5 @@ test14042025/
 delete.der
 output.txt
 slides_example_2.txt
+fetched_certs/
+*.db
