@@ -124,6 +124,7 @@ unordered_map<pair<Name, Subject>, unordered_set<Proof>> check;
 unordered_map<vector<string>, unordered_set<Proof>> value;
 unordered_map<vector<string>, unordered_set<Proof>> compatible;
 unordered_map<string, Certificate> certPool;
+
 unordered_set<vector<string>> loadedValue;
 
 // Input Functions

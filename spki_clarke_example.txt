@@ -1,0 +1,13 @@
+KA Bob -> KB
+KA Carol -> KB CarolJones
+KA Ted -> KB CarolJones Ted
+KA friends -> KA Bob
+KA friends -> KA Carol
+KA friends -> KA Ted
+KA friends -> KA Bob my-friends
+KB Alice -> KA
+KB CarolJones -> KC
+KB Frank -> KF
+KB my-friends -> KB Alice
+KB my-friends -> KB Frank
+KC Ted -> KT

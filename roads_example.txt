@@ -1,0 +1,28 @@
+KNESCAFE Vending_machine -> KVM1
+KNESCAFE Vending_machine -> KVM2
+KNESCAFE Vending_machine -> KVM3
+KNESCAFE Vending_machine -> KVM4
+KNESCAFE Vending_machine -> KVM5
+KNESCAFE Distributors -> KD1
+KNESCAFE Distributors -> KD2
+KD1 Retailers -> KR1
+KD1 Retailers -> KR2
+KD1 Retailers -> KR3
+KD2 Retailers -> KR4
+KD2 Retailers -> KR5
+KD2 Retailers -> KR6
+KR2 Customers -> KC1
+KR2 Customers -> KC2
+KR2 Customers -> KC3
+KR2 Customers -> KC4
+KR2 Customers -> KC5
+KR2 Customers -> KC6
+KNESCAFE coffee -> KNESCAFE Distributors [1]
+KD1 coffee -> KD1 Retailers [1]
+KD2 coffee -> KD2 Retailers [1]
+KR2 coffee -> KR2 Customers [0]
+KNESCAFE coffee -> KNESCAFE Customers [0]
+KR2 Customers -> KC1
+KR2 coffee -> KR2 Customers [0]
+KNESCAFE Customers -> KNESCAFE Distributors Retailers Customers
+KVM1 coffee -> KNESCAFE Customers [0]

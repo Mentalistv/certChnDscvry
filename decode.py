@@ -1,39 +1,48 @@
 import subprocess
 import sys
-import base64
-import re
+import os
 
-def extract_and_decode_b64(cert_file):
+
+def decode_der(der_file, output_txt):
+    """Decodes the DER file and saves its content to a text file."""
     try:
-        # Run OpenSSL command to get certificate details
         result = subprocess.run(
-            ["openssl", "x509", "-in", cert_file, "-text", "-noout"],
+            ["openssl", "asn1parse", "-in", der_file, "-inform", "DER"],
             capture_output=True, text=True, check=True
         )
 
-        output = result.stdout
+        decoded_content = result.stdout
+        print(f"\nDecoded DER Content saved in {output_txt}\n")
 
-        # Search for the OID 1.2.3.4.5.6 in the certificate
-        match = re.search(r"1\.2\.3\.4\.5\.6:\s*\n\s*(.+)", output)
-
-        if match:
-            b64_string = match.group(1).strip()
-
-            # Decode Base64
-            decoded_data = base64.b64decode(b64_string).decode("utf-8", errors="ignore")
-
-            print(f"Extracted Base64 String:\n{b64_string}\n")
-            print(f"Decoded Data:\n{decoded_data}\n")
-        else:
-            print("OID 1.2.3.4.5.6 not found in the certificate.")
+        # Save decoded content to a text file
+        with open(output_txt, "w") as f:
+            f.write(decoded_content)
 
     except subprocess.CalledProcessError as e:
-        print(f"Error running OpenSSL: {e}")
+        print(f"Error decoding DER file: {e}")
+
+def process_folder(input_folder, output_folder):
+    """Processes all certificate files in the input folder."""
+    if not os.path.exists(output_folder):  
+        os.makedirs(output_folder)  # Create output folder if it doesn't exist
+
+    for der_file in os.listdir(input_folder):
+        der_path = os.path.join(input_folder, der_file)
+        if der_file.endswith(".der"):  
+            cert_name = os.path.splitext(der_file)[0]
+            output_txt = os.path.join(output_folder, f"{cert_name}.txt")  
+            
+            print(f"\nProcessing .der file: {der_file}")
+
+            decode_der(der_path, output_txt)
+            # os.remove(output_der)
 
 if __name__ == "__main__":
-    if len(sys.argv) != 2:
-        print("Usage: python extract_b64_from_cert.py <certificate.crt>")
+    if len(sys.argv) != 3:
+        print("Usage: python extract_and_decode_folder.py <input_folder> <output_folder>")
         sys.exit(1)
 
-    cert_file = sys.argv[1]
-    extract_and_decode_b64(cert_file)
+    input_folder = sys.argv[1]
+    output_folder = sys.argv[2]
+
+    process_folder(input_folder, output_folder)
