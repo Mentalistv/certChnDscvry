@@ -1,6 +1,7 @@
 import os
 import sys
 import uuid
+import sqlite3
 import hashlib
 from collections import defaultdict
 
@@ -83,6 +84,42 @@ loaded_value = set()
 # unordered_map<vector<string>, unordered_set<Proof>> compatible;
 # unordered_map<string, Certificate> certPool;
 # unordered_set<vector<string>> loadedValue;
+
+
+# reads the certificate from the database
+def load_certificates_from_database(db_path):
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+
+    # Fetch all distinct issuers (i.e., table names)
+    cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'")
+    tables = [row[0] for row in cursor.fetchall()]
+
+    for table in tables:
+        # print("for table:", table)
+        cursor.execute(f"SELECT * FROM '{table}'")
+        rows = cursor.fetchall()
+
+        for row in rows:
+            # print(row)
+            sno, local_name, subject_str, cert_type, delegation_bit = row
+
+            cert_id = str(uuid.uuid4())  # Generate unique ID for cert
+            issuer_str, *local_parts = local_name.strip().split()
+            issuer = Principal(issuer_str)
+            name = Name(issuer, local_name.strip())
+
+            if " " in subject_str:
+                subject_issuer_str, *subject_parts = subject_str.strip().split()
+                subject = Subject(False, name=Name(Principal(subject_issuer_str), subject_str.strip()))
+            else:
+                subject = Subject(True, principal=Principal(subject_str.strip()))
+
+            cert = Certificate(cert_id, cert_type, name, subject, int(delegation_bit))
+            cert_pool[cert_id] = cert
+
+    conn.close()
+
 
 # reads certs fron the folder
 def parse_certificate(file_path):
@@ -223,11 +260,12 @@ def print_chain(proof):
 
 if __name__ == "__main__":
     if len(sys.argv) != 2:
-        print("Usage: python script.py <folder_path>")
+        print("Usage: python script.py <database_path>")
         exit(1)
-    
-    folder_path = sys.argv[1]
-    load_certificates_from_folder(folder_path)
+
+    db_path = sys.argv[1]
+    load_certificates_from_database(db_path)
+
     
     print("------------------------------ Certificates Loaded -------------------------------\n")
     
