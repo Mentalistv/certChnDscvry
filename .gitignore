@@ -1,11 +1,13 @@
 certs/
 downloaded_certs/
 fetchCerts/
+fetched_certs/
 slides_20032025/
 test_clarke_27032025/
 test14042025/
 delete.der
 output.txt
 slides_example_2.txt
-fetched_certs/
+slides_example.txt
 *.db
+.vscode/
