@@ -11,3 +11,6 @@ slides_example_2.txt
 slides_example.txt
 *.db
 .vscode/
+delete_Folfer/
+test.py
+__pycache__/

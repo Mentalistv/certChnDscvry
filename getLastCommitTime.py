@@ -27,8 +27,9 @@ def get_last_commit_for_path(owner, repo, branch="main", folder_path=""):
 owner = "Mentalistv"
 repo = "certChnDscvry"
 branch = "sqliteDB"
-folder_path = "fetched_certs"  # Change to the folder of interest
+folder_path = ""  # Change to the folder of interest
 
-last_commit_datetime = get_last_commit_for_path(owner, repo, branch, folder_path)
-if last_commit_datetime:
-    print(f"Last commit in folder '{folder_path}' on branch '{branch}': {last_commit_datetime}")
+# last_commit_datetime = get_last_commit_for_path(owner, repo, branch, folder_path)
+# if last_commit_datetime:
+#     print(type(last_commit_datetime))
+#     print(f"Last commit in folder '{folder_path}' on branch '{branch}': {last_commit_datetime}")

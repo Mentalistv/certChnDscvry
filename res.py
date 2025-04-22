@@ -1,8 +1,12 @@
 import os
 import sys
 import uuid
-import hashlib
+import shutil
+# import hashlib
 from collections import defaultdict
+from fetchFilesGitHub import fetch_der_files
+from getLastCommitTime import get_last_commit_for_path
+from decode import process_folder, decode_der
 
 # Data Types
 # class CertType:
@@ -76,6 +80,7 @@ value = defaultdict(set)
 compatible = defaultdict(set)
 cert_pool = {}
 loaded_value = set()
+# loaded_issuers = set()
 
 # in cpp
 # unordered_map<pair<Name, Subject>, unordered_set<Proof>> check;
@@ -116,11 +121,16 @@ def parse_certificate(file_path):
     return cert
 
 def load_certificates_from_folder(folder_path):
+    new_certs_added = set()
+    
     for file_name in os.listdir(folder_path):
         file_path = os.path.join(folder_path, file_name)
         if os.path.isfile(file_path):
             cert = parse_certificate(file_path)
             cert_pool[cert.cert_id] = cert
+            new_certs_added.add(cert.cert_id)
+            
+    return new_certs_added
 
 # return the prefixes of the name
 def return_prefix(name):
@@ -158,7 +168,7 @@ def compose(proof_a, proof_b):
     return p
 
 # insert the proof into the hash tables
-def insert(proof):
+def insert(proof, base_folder):
     key = (proof.name, proof.subject)
     
     print("insert() :: called")
@@ -176,35 +186,87 @@ def insert(proof):
                 compatible[p].add(proof)
                 
             for p in prefix:
-                load_value(p)
+                load_value(p, base_folder)
             
             for p in prefix:
                 for other_proof in value[p]:
-                    insert(compose(proof, other_proof))
+                    insert(compose(proof, other_proof), base_folder)
         else:
             str = proof.name.local_names
             
             value[str].add(proof)
             
             for comp_proof in compatible[str]:
-                insert(compose(comp_proof, proof))
+                insert(compose(comp_proof, proof), base_folder)
 
 # load the certifcates 
-def load_value(name):
+def load_value(name, base_folder):
     if name not in loaded_value:
-        loaded_value.add(name)
-        
+        loaded_value.add(name)        
         print(f"load_value() :: Loading certificates for {name}")
+
+       
+        issuer = name.split()[0]
         
-        for cert in cert_pool.values():
+        owner = "Mentalistv"
+        repo = issuer
+        branch = "main"
+        folder_path = "/".join(name.split()[1:])  # join the rest of the name as the folder path
+        
+        # to get the last commit time of the folder
+        last_commit_datetime = get_last_commit_for_path(owner, repo, branch, folder_path)
+        if last_commit_datetime is None:
+            print(f"load_value() :: No commits found for {name}")
+            return
+        
+        # name of the folder to save the certs
+        updated_name = name.replace(" ", "_")
+        output_folder = f"{updated_name}_{last_commit_datetime.strftime('%Y%m%d_%H%M%S')}"
+        output_folder = os.path.join(base_folder, output_folder)
+        
+        # checking if the folder exists
+        if not os.path.exists(output_folder):
+            
+            # delete the old folder if it exists with some other datetime
+            for folder in os.listdir(base_folder):
+                if folder.startswith(f"{updated_name}_") and folder != output_folder:
+                    full_path = os.path.join(base_folder, folder)
+                    if os.path.isdir(full_path):
+                        print(f"Deleting old folder: {full_path}")  
+                        shutil.rmtree(full_path)    # delete the old folder recursively
+                    break
+                
+            # create the new folder
+            os.makedirs(output_folder, exist_ok=True)
+                
+            # fetch the der files from the github repo
+            fetch_der_files(owner, repo, branch, folder_path, output_folder)
+                    
+        # decode the der files to txt files
+        temporary_folder = os.path.join(output_folder, "temp")
+        os.makedirs(temporary_folder, exist_ok=True)
+        
+        # for file_name in os.listdir(output_folder):
+        #     if file_name.endswith(".der"):
+        #         file_path = os.path.join(temporary_folder, file_name)
+        #         decode_der(file_path, os.path.splitext(file_path)[0] + ".txt")
+        process_folder(output_folder, temporary_folder)
+                
+        # add the decoded files to the cert pool
+        new_certs_added = load_certificates_from_folder(temporary_folder)
+        shutil.rmtree(temporary_folder)  # delete the temporary folder
+
+        # algorithm continues
+        for c in new_certs_added:
+            cert = cert_pool[c]
             if cert.name.local_names == name:
-                insert(cert_to_proof(cert))
+                insert(cert_to_proof(cert), base_folder)
 
 # name resolution algorithm
-def name_resolution(name):
+def name_resolution(name, output_folder):
     print(f"\nname_resolution() :: Resolving name: {name}")
     
-    load_value(name)
+    load_value(name, output_folder)
     return value[name]
 
 # print the certificates in the rewrite format
@@ -223,22 +285,23 @@ def print_chain(proof):
 
 if __name__ == "__main__":
     if len(sys.argv) != 2:
-        print("Usage: python script.py <folder_path>")
+        print("Usage: python script.py <cert_store_folder_path>")
         exit(1)
     
-    folder_path = sys.argv[1]
-    load_certificates_from_folder(folder_path)
+    output_folder = sys.argv[1]
+    os.makedirs(output_folder, exist_ok=True)
+    # load_certificates_from_folder(folder_path)
     
-    print("------------------------------ Certificates Loaded -------------------------------\n")
+    # print("------------------------------ Certificates Loaded -------------------------------\n")
     
-    for cert in cert_pool.values():
-        print_cert(cert)
+    # for cert in cert_pool.values():
+    #     print_cert(cert)
         
-    print("\n----------------------------------------------------------------------------------\n")
+    # print("\n----------------------------------------------------------------------------------\n")
     
     name_under_consideration = input("Enter the certificate ID to resolve: ")
     
-    res = name_resolution(name_under_consideration)
+    res = name_resolution(name_under_consideration, output_folder)
     print(f"\nName Resolution for {name_under_consideration}:")
     
     print(len(res))

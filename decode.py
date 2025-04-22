@@ -6,13 +6,14 @@ import os
 def decode_der(der_file, output_txt):
     """Decodes the DER file and saves its content to a text file."""
     try:
+        # der_file = os.path.abspath(der_file)
         result = subprocess.run(
             ["openssl", "asn1parse", "-in", der_file, "-inform", "DER"],
             capture_output=True, text=True, check=True
         )
 
         decoded_content = result.stdout
-        print(f"\nDecoded DER Content saved in {output_txt}\n")
+        print(f"Decoded DER Content saved in {output_txt}")
 
         # Save decoded content to a text file
         with open(output_txt, "w") as f:
