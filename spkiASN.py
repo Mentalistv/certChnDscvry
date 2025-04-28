@@ -207,7 +207,7 @@ def parse_certificate_file(file_path, output_folder):
 
         der_folder = os.path.join(output_folder, f"ders")
         os.makedirs(der_folder, exist_ok=True)
-        der_file = os.path.join(der_folder, f"{subject}.der")
+        der_file = os.path.join(der_folder, f"{issuer}_{subject}.der")
         save_asn1_to_der(spki_asn1, der_file)
         
         spki_b64 = convert_der_to_base64(der_file)

@@ -61,18 +61,19 @@ class Certificate:
         return hash(self.cert_id)
 
 class Proof:
-    def __init__(self, name, subject, cert_ids, delegation_bit=0):
+    def __init__(self, type, name, subject, cert_ids, delegation_bit=0):
+        self.cert_type = type
         self.name = name
         self.subject = subject
         self.cert_ids = cert_ids
         self.delegation_bit = delegation_bit
     
     def __eq__(self, other):
-        return (self.name == other.name and self.subject == other.subject and 
+        return (self.name == other.name and self.subject == other.subject and self.type == other.type and
                 self.cert_ids == other.cert_ids and self.delegation_bit == other.delegation_bit)
     
     def __hash__(self):
-        return hash((self.name, self.subject, tuple(self.cert_ids), self.delegation_bit))
+        return hash((self.cert_type, self.name, self.subject, tuple(self.cert_ids), self.delegation_bit))
 
 # Hash Tables
 check = defaultdict(set)
@@ -139,13 +140,25 @@ def return_prefix(name):
 
 # convert certificate to proof
 def cert_to_proof(cert):
-    return Proof(cert.name, cert.subject, [cert.cert_id], cert.delegation_bit)
+    return Proof(cert.cert_type, cert.name, cert.subject, [cert.cert_id], cert.delegation_bit)
 
 # compose two proofs
 def compose(proof_a, proof_b):
-    p = Proof(Name(proof_a.name.issuer, proof_a.name.local_names), Subject(False, Principal(""), Name(Principal(""), "")), proof_a.cert_ids + proof_b.cert_ids, proof_a.delegation_bit)
+    p = Proof(proof_a.cert_type, Name(proof_a.name.issuer, proof_a.name.local_names), Subject(False, Principal(""), Name(Principal(""), "")), proof_a.cert_ids + proof_b.cert_ids, proof_a.delegation_bit)
     
     print("compose() :: Composing proofs with names:", proof_a.name.local_names, "->", proof_a.subject.name.local_names, " and ", proof_b.name.local_names, "->", proof_b.subject.principal.key if proof_b.subject.is_principal else proof_b.subject.name.local_names)
+    
+    if proof_a.cert_type == "NAME":
+        if proof_b.cert_type == "AUTH":
+            return None
+        
+    if proof_a.cert_type == "AUTH":
+        if (not proof_a.subject.is_principal) and proof_b.cert_type == "AUTH":
+                return None
+    
+    if proof_b.cert_type == "AUTH":
+        if not proof_a.subject.name.local_names == proof.name.local_names:
+            return None
     
     if proof_a.subject.name.local_names == proof_b.name.local_names:
         if(proof_b.subject.is_principal):
