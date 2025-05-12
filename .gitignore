@@ -14,3 +14,5 @@ slides_example.txt
 delete_Folfer/
 test.py
 __pycache__/
+delete_dir/
+received_file.txt
