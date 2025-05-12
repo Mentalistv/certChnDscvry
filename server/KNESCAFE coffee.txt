@@ -1,0 +1,8 @@
+KC2
+KD2
+KC4
+KD1
+KC6
+KC5
+KC1
+KC3

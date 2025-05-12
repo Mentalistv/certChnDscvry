@@ -6,7 +6,8 @@ import shutil
 from collections import defaultdict
 from fetchFilesGitHub import fetch_der_files
 from getLastCommitTime import get_last_commit_for_path
-from decode import process_folder, decode_der
+from decode import process_folder
+
 
 # Data Types
 # class CertType:
@@ -218,10 +219,10 @@ def load_value(name, base_folder):
         loaded_value.add(name)        
         print(f"load_value() :: Loading certificates for {name}")
 
-       
+
         issuer = name.split()[0]
         
-        owner = "Mentalistv"
+        owner = "VarnG"
         repo = issuer
         branch = "main"
         folder_path = "/".join(name.split()[1:])  # join the rest of the name as the folder path
@@ -276,25 +277,38 @@ def load_value(name, base_folder):
                 insert(cert_to_proof(cert), base_folder)
 
 # name resolution algorithm
-def name_resolution(name, output_folder):
+def name_resolution(name, output_folder="delete_dir", specific_pk=None):
     print(f"\nname_resolution() :: Resolving name: {name}")
     
     load_value(name, output_folder)
-    return value[name]
+    
+    res_certs = set()
+    
+    for proof in value[name]:
+        if proof.subject.principal.key == specific_pk:
+            for cert_id in proof.cert_ids:            
+                cert = cert_pool[cert_id]
+                res_certs.add(cert)
+            break
+    
+    return value[name], res_certs
 
 # print the certificates in the rewrite format
 def print_cert(cert):
     subject = (
-        cert.subject.principal.key 
-        if cert.subject.is_principal 
+        cert.subject.principal.key
+        if cert.subject.is_principal
         else cert.subject.name.local_names
     )
     print(f"{cert.cert_type}: {cert.name.local_names} -> {subject}")
+    
+    return f"{cert.cert_type}: {cert.name.local_names} -> {subject}"
 
 # prints the chain of certificates
 def print_chain(proof):
     for cert_id in proof.cert_ids:
         print_cert(cert_pool[cert_id])
+
 
 if __name__ == "__main__":
     if len(sys.argv) != 2:
@@ -314,7 +328,7 @@ if __name__ == "__main__":
     
     name_under_consideration = input("Enter the certificate ID to resolve: ")
     
-    res = name_resolution(name_under_consideration, output_folder)
+    res, res_certs = name_resolution(name_under_consideration, output_folder)
     print(f"\nName Resolution for {name_under_consideration}:")
     
     print(len(res))
