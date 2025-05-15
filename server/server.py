@@ -1,6 +1,12 @@
 import socket
 import threading
 
+# from fetchFilesGitHub import list_der_files, download_file
+# from decode import decode_der
+# from res import parse_certificate, cert_pool
+# import tempfile
+# import os
+
 class Proof:
     def __init__(self, type, name, subject):
         self.type = type
@@ -10,6 +16,50 @@ class Proof:
 HOST = '127.0.0.1'
 PORT = 65432
 END_MARKER = "__END_OF_MESSAGE__"
+
+def verify_proof_chain(proof, temp_base="./temp_verify"):
+    os.makedirs(temp_base, exist_ok=True)
+    
+    for cert_id in proof.cert_ids:
+        cert = cert_pool[cert_id]
+        issuer = cert.name.issuer.key
+        repo = issuer
+        branch = "main"
+        folder = cert.name.local_names.split(" ", 1)[1]  # e.g. "Distributors"
+        
+        print(f"verify_proof_chain() :: Verifying for repo={repo}, folder={folder}")
+        
+        # Get .der file list from folder (non-recursively)
+        der_files = list_der_files(repo, folder, branch=branch)
+        
+        match_found = False
+        for der_file in der_files:
+            try:
+                temp_der_path = os.path.join(temp_base, der_file)
+                download_file(repo, folder + '/' + der_file, temp_der_path, branch=branch)
+                
+                decoded_txt_path = temp_der_path.replace('.der', '.txt')
+                decode_der(temp_der_path, decoded_txt_path)
+                
+                parsed_cert = parse_certificate(decoded_txt_path)
+                
+                # Compare the fields
+                if (parsed_cert.name.local_names == cert.name.local_names and
+                    parsed_cert.subject == cert.subject and
+                    parsed_cert.delegation_bit == cert.delegation_bit and
+                    parsed_cert.cert_type == cert.cert_type):
+                    match_found = True
+                    break
+            except Exception as e:
+                print(f"verify_proof_chain() :: Error decoding/verifying {der_file}: {e}")
+                continue
+        
+        if not match_found:
+            print(f"verify_proof_chain() :: No matching cert found for {cert_id}")
+            return False
+
+    print("verify_proof_chain() :: All certificates verified successfully.")
+    return True
 
 def handle_client(conn, addr):
     print(f"Connected by {addr}")
@@ -54,9 +104,8 @@ def handle_client(conn, addr):
 
         # 4. Verify the proof chain
         proof_verified = True
-        
-        
-        
+        # proof_verified = verify_proof_chain(proof_chain)
+
         # 5. Send secret file
         if proof_verified:
             secret_file = f"{single_line.replace(' ', '')}_secret.txt"

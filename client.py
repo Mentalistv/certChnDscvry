@@ -53,7 +53,7 @@ try:
         multiline = ""
         for cert in certs:
             cert_line = print_cert(cert)
-            print(cert_line)
+            # print(cert_line)
             multiline += cert_line + "\n"
 
         client_socket.sendall((multiline + END_MARKER).encode())
