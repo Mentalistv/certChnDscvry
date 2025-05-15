@@ -1,65 +1,131 @@
 import socket
 import threading
 
+from fetchFilesGitHub import fetch_der_files
+from decode import process_folder
+
+import tempfile
+import os
+import shutil
 # from fetchFilesGitHub import list_der_files, download_file
 # from decode import decode_der
 # from res import parse_certificate, cert_pool
-# import tempfile
-# import os
 
 class Proof:
     def __init__(self, type, name, subject):
         self.type = type
         self.name = name
         self.subject = subject
+        
+    def __eq__(self, other):
+        return (self.name == other.name and self.subject == other.subject and self.type == other.type)
 
 HOST = '127.0.0.1'
 PORT = 65432
 END_MARKER = "__END_OF_MESSAGE__"
 
-def verify_proof_chain(proof, temp_base="./temp_verify"):
-    os.makedirs(temp_base, exist_ok=True)
+def der_to_Proof(file_path):
+    with open(file_path, 'r', encoding="utf-8") as file:
+        lines = file.readlines()
     
-    for cert_id in proof.cert_ids:
-        cert = cert_pool[cert_id]
-        issuer = cert.name.issuer.key
-        repo = issuer
-        branch = "main"
-        folder = cert.name.local_names.split(" ", 1)[1]  # e.g. "Distributors"
+    issuer = lines[1].strip().split(':')[-1].strip()
+    local_name = issuer + " "
+    local_name += lines[2].strip().split(':')[-1].strip()
+    
+    subject_issuer = lines[3].strip().split(':')[-1].strip().split('#')[0].strip()
+    subject_local_name = subject_issuer + " "
+    subject_local_name += ' '.join(lines[3].strip().split(':')[-1].strip().replace('#', ' ').strip().split()[1:])
+    
+    # last_line = lines[-2].strip()
+    type = "AUTH" if "BOOLEAN" in last_line else "NAME"
+    # delegation_bit = 1 if "255" in last_line else 0
+    
+    # cert_id = str(uuid.uuid4())
+    # issuer_principal = Principal(issuer)
+    # name = Name(issuer_principal, local_name)
+    
+    # if("#" in lines[3]):
+    #     subject = Subject(False, name=Name(Principal(subject_issuer), subject_local_name))
+    # else:
+    #     subject_principal = Principal(subject_issuer)
+    #     subject = Subject(True, principal=subject_principal)
         
-        print(f"verify_proof_chain() :: Verifying for repo={repo}, folder={folder}")
-        
-        # Get .der file list from folder (non-recursively)
-        der_files = list_der_files(repo, folder, branch=branch)
-        
-        match_found = False
-        for der_file in der_files:
-            try:
-                temp_der_path = os.path.join(temp_base, der_file)
-                download_file(repo, folder + '/' + der_file, temp_der_path, branch=branch)
-                
-                decoded_txt_path = temp_der_path.replace('.der', '.txt')
-                decode_der(temp_der_path, decoded_txt_path)
-                
-                parsed_cert = parse_certificate(decoded_txt_path)
-                
-                # Compare the fields
-                if (parsed_cert.name.local_names == cert.name.local_names and
-                    parsed_cert.subject == cert.subject and
-                    parsed_cert.delegation_bit == cert.delegation_bit and
-                    parsed_cert.cert_type == cert.cert_type):
-                    match_found = True
-                    break
-            except Exception as e:
-                print(f"verify_proof_chain() :: Error decoding/verifying {der_file}: {e}")
-                continue
-        
-        if not match_found:
-            print(f"verify_proof_chain() :: No matching cert found for {cert_id}")
-            return False
+    proof = Proof(type, local_name, subject_local_name)
+    
+    return proof
 
-    print("verify_proof_chain() :: All certificates verified successfully.")
+def verify_proof_chain(proof_chain, temp_base="./temp_verify"):
+    owner = "VarnG"
+    branch = "main"
+    
+    os.makedirs(temp_base, exist_ok=True)
+    temporary_folder = os.path.join(temp_base, "temp")
+    os.makedirs(temporary_folder, exist_ok=True)
+    
+    # fetch_cert_set = set()
+    
+    for proof in proof_chain:
+        repo = proof.name.split()[0]
+        folder_path = "/".join(proof.name.split()[1:])
+        
+        fetch_der_files(owner, repo, branch, folder_path, temp_base)        
+        process_folder(temp_base, temporary_folder)
+        
+        for file in temporary_folder:
+            file_path = os.path.join(folder_path, file)
+            
+            if os.path.isfile(file_path):
+                p = der_to_Proof(file_path)
+                
+                if proof == p:
+                    continue
+                else:
+                    return False
+                
+            shutil.rmtree(temporary_folder)
+                
     return True
+    
+    # for cert_id in proof.cert_ids:
+    #     cert = cert_pool[cert_id]
+    #     issuer = cert.name.issuer.key
+    #     repo = issuer
+    #     branch = "main"
+    #     folder = cert.name.local_names.split(" ", 1)[1]  # e.g. "Distributors"
+        
+    #     print(f"verify_proof_chain() :: Verifying for repo={repo}, folder={folder}")
+        
+    #     # Get .der file list from folder (non-recursively)
+    #     der_files = list_der_files(repo, folder, branch=branch)
+        
+    #     match_found = False
+    #     for der_file in der_files:
+    #         try:
+    #             temp_der_path = os.path.join(temp_base, der_file)
+    #             download_file(repo, folder + '/' + der_file, temp_der_path, branch=branch)
+                
+    #             decoded_txt_path = temp_der_path.replace('.der', '.txt')
+    #             decode_der(temp_der_path, decoded_txt_path)
+                
+    #             parsed_cert = parse_certificate(decoded_txt_path)
+                
+    #             # Compare the fields
+    #             if (parsed_cert.name.local_names == cert.name.local_names and
+    #                 parsed_cert.subject == cert.subject and
+    #                 parsed_cert.delegation_bit == cert.delegation_bit and
+    #                 parsed_cert.cert_type == cert.cert_type):
+    #                 match_found = True
+    #                 break
+    #         except Exception as e:
+    #             print(f"verify_proof_chain() :: Error decoding/verifying {der_file}: {e}")
+    #             continue
+        
+    #     if not match_found:
+    #         print(f"verify_proof_chain() :: No matching cert found for {cert_id}")
+    #         return False
+
+    # print("verify_proof_chain() :: All certificates verified successfully.")
+    # return True
 
 def handle_client(conn, addr):
     print(f"Connected by {addr}")
