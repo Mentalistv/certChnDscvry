@@ -16,3 +16,5 @@ test.py
 __pycache__/
 delete_dir/
 received_file.txt
+server/temp_verify/
+temp_base/

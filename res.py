@@ -331,7 +331,7 @@ if __name__ == "__main__":
         
     # print("\n----------------------------------------------------------------------------------\n")
     
-    name_under_consideration = input("Enter the certificate ID to resolve: ")
+    name_under_consideration = input("Enter the resource name to resolve: ")
     
     res, res_certs = name_resolution(name_under_consideration, output_folder)
     print(f"\nName Resolution for {name_under_consideration}:")

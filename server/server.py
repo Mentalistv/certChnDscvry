@@ -141,7 +141,7 @@ def handle_client(conn, addr):
             with open(file_name, 'r') as f:
                 data = f.read()
             conn.sendall((data + f"\n{END_MARKER}\n").encode())
-            print(f"[{addr}] Resource file sent.")
+            print(f"[{addr}] Policy file sent.")
         except FileNotFoundError:
             conn.sendall((f"ERROR: File '{file_name}' not found.\n{END_MARKER}\n").encode())
             return

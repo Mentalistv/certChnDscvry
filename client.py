@@ -56,7 +56,7 @@ try:
         output_folder = "delete_dir"
         os.makedirs(output_folder, exist_ok=True)
 
-        print("\n[INFO] Checking possible chains/proves...")
+        print("\n[INFO] Checking possible chains/proofs...")
         f = io.StringIO()
         with redirect_stdout(f):
             proof_chain, certs = name_resolution(resource_name, output_folder)
@@ -65,7 +65,8 @@ try:
         for proof in proof_chain:
             res_public_keys.append(proof.subject.principal.key)
             
-        available_public_keys = (list(set(res_public_keys) | set(allowed_public_keys)))
+        # intersection of allowed public keys and resource public keys
+        available_public_keys = list(set(res_public_keys) & set(allowed_public_keys))
             
         print("\nThese are the available options: ")
         for pk in available_public_keys:
