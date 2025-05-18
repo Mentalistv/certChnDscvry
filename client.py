@@ -3,6 +3,10 @@ from res import name_resolution, print_cert
 import os
 import sys
 
+# redirects the print stmt output from name resolution
+import io
+from contextlib import redirect_stdout
+
 HOST = '127.0.0.1'
 PORT = 65432
 END_MARKER = "__END_OF_MESSAGE__"
@@ -37,25 +41,48 @@ try:
         print("\n[INFO] Waiting for allowed public keys...")
         buffer = receive_until_marker(client_socket)
         lines = buffer.splitlines()
+        
+        allowed_public_keys = []
 
-        print("\nAllowed public keys for the resource:")
         for line in lines:
-            print(f"> {line}")
+            # print(f"> {line}")
+            allowed_public_keys.append(line.strip())
+            
+        print("\nAllowed public keys for the resource:")
+        for pk in allowed_public_keys:
+            print(f"> {pk}")
 
         # Generate proof chain
-        pk = input("\nEnter the public key to generate proof: ").strip()
         output_folder = "delete_dir"
         os.makedirs(output_folder, exist_ok=True)
 
-        proof_chain, certs = name_resolution(resource_name, output_folder, pk)
-
+        print("\n[INFO] Checking possible chains/proves...")
+        f = io.StringIO()
+        with redirect_stdout(f):
+            proof_chain, certs = name_resolution(resource_name, output_folder)
+            
+        res_public_keys = []
+        for proof in proof_chain:
+            res_public_keys.append(proof.subject.principal.key)
+            
+        available_public_keys = (list(set(res_public_keys) | set(allowed_public_keys)))
+            
+        print("\nThese are the available options: ")
+        for pk in available_public_keys:
+            print(f"> {pk}")
+        
+        pk = input("\nEnter the public key to generate proof: ").strip()
+        
         print("\nGenerated Proof Chain:")
         multiline = ""
-        for cert in certs:
-            cert_line = print_cert(cert)
-            # print(cert_line)
-            multiline += cert_line + "\n"
+        for proof in proof_chain:
+            if pk == proof.subject.principal.key:
+                for cert_id in proof.cert_ids:
+                    cert_line = print_cert(certs[cert_id])
+                    # print(cert_line)
+                    multiline += cert_line + "\n"
 
+        # multiline = ""
         client_socket.sendall((multiline + END_MARKER).encode())
 
         # Receive secret file

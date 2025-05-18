@@ -36,7 +36,7 @@ def der_to_Proof(file_path):
     subject_local_name = subject_issuer + " "
     subject_local_name += ' '.join(lines[3].strip().split(':')[-1].strip().replace('#', ' ').strip().split()[1:])
     
-    # last_line = lines[-2].strip()
+    last_line = lines[-2].strip()
     type = "AUTH" if "BOOLEAN" in last_line else "NAME"
     # delegation_bit = 1 if "255" in last_line else 0
     
@@ -82,7 +82,7 @@ def verify_proof_chain(proof_chain, temp_base="./temp_verify"):
                 else:
                     return False
                 
-            shutil.rmtree(temporary_folder)
+        shutil.rmtree(temporary_folder)
                 
     return True
     
@@ -141,6 +141,7 @@ def handle_client(conn, addr):
             with open(file_name, 'r') as f:
                 data = f.read()
             conn.sendall((data + f"\n{END_MARKER}\n").encode())
+            print(f"[{addr}] Resource file sent.")
         except FileNotFoundError:
             conn.sendall((f"ERROR: File '{file_name}' not found.\n{END_MARKER}\n").encode())
             return
@@ -170,10 +171,12 @@ def handle_client(conn, addr):
 
         # 4. Verify the proof chain
         proof_verified = True
+        print(f"\n[{addr}] Verifying proof chain...")
         # proof_verified = verify_proof_chain(proof_chain)
 
         # 5. Send secret file
         if proof_verified:
+            print(f"[{addr}] Proof verified successfully. Sending secret file...")
             secret_file = f"{single_line.replace(' ', '')}_secret.txt"
             try:
                 with open(secret_file, 'r') as f:

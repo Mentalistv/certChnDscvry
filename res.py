@@ -282,14 +282,19 @@ def name_resolution(name, output_folder="delete_dir", specific_pk=None):
     
     load_value(name, output_folder)
     
-    res_certs = set()
+    res_certs = dict()
     
+    # for proof in value[name]:
+    #     if proof.subject.principal.key == specific_pk:
+    #         for cert_id in proof.cert_ids:            
+    #             cert = cert_pool[cert_id]
+    #             res_certs.add(cert)
+    #         break
+        
     for proof in value[name]:
-        if proof.subject.principal.key == specific_pk:
-            for cert_id in proof.cert_ids:            
-                cert = cert_pool[cert_id]
-                res_certs.add(cert)
-            break
+        for cert_id in proof.cert_ids:
+            cert = cert_pool[cert_id]
+            res_certs[cert.cert_id] = cert
     
     return value[name], res_certs
 
@@ -312,7 +317,7 @@ def print_chain(proof):
 
 if __name__ == "__main__":
     if len(sys.argv) != 2:
-        print("Usage: python script.py <cert_store_folder_path>")
+        print("Usage: python3 res.py <cert_store_folder_path>")
         exit(1)
     
     output_folder = sys.argv[1]
