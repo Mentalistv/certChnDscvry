@@ -48,12 +48,13 @@ class Subject:
         return hash((self.is_principal, self.principal if self.is_principal else self.name))
 
 class Certificate:
-    def __init__(self, cert_id, cert_type, name, subject, delegation_bit):
+    def __init__(self, cert_id, cert_type, name, subject, delegation_bit, filename=None):
         self.cert_id = cert_id
         self.cert_type = cert_type
         self.name = name
         self.subject = subject
         self.delegation_bit = delegation_bit
+        self.filename = filename  # Optional, for tracking the source file
     
     def __eq__(self, other):
         return self.cert_id == other.cert_id
@@ -118,7 +119,7 @@ def parse_certificate(file_path):
         subject_principal = Principal(subject_issuer)
         subject = Subject(True, principal=subject_principal)
         
-    cert = Certificate(cert_id, cert_type, name, subject, delegation_bit)
+    cert = Certificate(cert_id, cert_type, name, subject, delegation_bit, file_path)
     
     return cert
 

@@ -27,6 +27,10 @@ def receive_until_marker(sock):
         sys.exit(1)
     return buffer.replace(END_MARKER, "").strip()
 
+def further_resolve_policy():
+    pk
+
+# Client code to connect to the server and request a resource
 try:
     resource_name = input("What resource do you want to access? (e.g., 'resource1'): ").strip()
 
@@ -46,7 +50,12 @@ try:
 
         for line in lines:
             # print(f"> {line}")
-            allowed_public_keys.append(line.strip())
+            allowed_entity = line.strip()
+            
+            if len(allowed_entity.split(" ")) > 1:
+                allowed_public_keys.append(further_resolve_policy(allowed_entity))
+            else:    
+                allowed_public_keys.append()
             
         print("\nAllowed public keys for the resource:")
         for pk in allowed_public_keys:
@@ -66,7 +75,7 @@ try:
             res_public_keys.append(proof.subject.principal.key)
             
         # intersection of allowed public keys and resource public keys
-        available_public_keys = list(set(res_public_keys) & set(allowed_public_keys))
+        available_public_keys = list(set(res_public_keys) & set(allowed_public_keys)) 
             
         print("\nThese are the available options: ")
         for pk in available_public_keys:
