@@ -23,7 +23,7 @@ def create_der_zip(file_list, output_zip_path):
                     zipf.write(file_path, arcname=os.path.basename(file_path))
                 else:
                     print(f"Skipping invalid or non-existent file: {file_path}")
-        print(f"Created ZIP file: {output_zip_path}")
+        print(f"\nCreated ZIP file: {output_zip_path}")
         return True
     except Exception as e:
         print(f"Error creating zip: {e}")

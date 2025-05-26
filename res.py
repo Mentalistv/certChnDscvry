@@ -93,7 +93,7 @@ loaded_value = set()
 # unordered_set<vector<string>> loadedValue;
 
 # reads certs fron the folder
-def parse_certificate(file_path):
+def parse_certificate(file_path, der_file_path):
     with open(file_path, 'r', encoding="utf-8") as file:
         lines = file.readlines()
     
@@ -119,17 +119,22 @@ def parse_certificate(file_path):
         subject_principal = Principal(subject_issuer)
         subject = Subject(True, principal=subject_principal)
         
-    cert = Certificate(cert_id, cert_type, name, subject, delegation_bit, file_path)
+    cert = Certificate(cert_id, cert_type, name, subject, delegation_bit, der_file_path)
     
     return cert
 
-def load_certificates_from_folder(folder_path):
+def load_certificates_from_folder(folder_path, der_folder_path):
     new_certs_added = set()
     
     for file_name in os.listdir(folder_path):
         file_path = os.path.join(folder_path, file_name)
+        
+        base_name, ext = os.path.splitext(file_name)[0], os.path.splitext(file_name)[1]
+        der_file_name = base_name + ".der"
+        der_file_path = os.path.join(der_folder_path, der_file_name)
+        
         if os.path.isfile(file_path):
-            cert = parse_certificate(file_path)
+            cert = parse_certificate(file_path, der_file_path)
             cert_pool[cert.cert_id] = cert
             new_certs_added.add(cert.cert_id)
             
@@ -268,7 +273,7 @@ def load_value(name, base_folder):
         process_folder(output_folder, temporary_folder)
                 
         # add the decoded files to the cert pool
-        new_certs_added = load_certificates_from_folder(temporary_folder)
+        new_certs_added = load_certificates_from_folder(temporary_folder, output_folder)
         shutil.rmtree(temporary_folder)  # delete the temporary folder
 
         # algorithm continues

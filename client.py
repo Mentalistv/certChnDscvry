@@ -1,7 +1,9 @@
 import socket
-from res import name_resolution, print_cert
 import os
 import sys
+
+from res import name_resolution, print_cert
+from makeZIP import create_der_zip
 
 # redirects the print stmt output from name resolution
 import io
@@ -27,8 +29,8 @@ def receive_until_marker(sock):
         sys.exit(1)
     return buffer.replace(END_MARKER, "").strip()
 
-def further_resolve_policy():
-    pk
+# def further_resolve_policy():
+#     pk
 
 # Client code to connect to the server and request a resource
 try:
@@ -52,10 +54,12 @@ try:
             # print(f"> {line}")
             allowed_entity = line.strip()
             
-            if len(allowed_entity.split(" ")) > 1:
-                allowed_public_keys.append(further_resolve_policy(allowed_entity))
-            else:    
-                allowed_public_keys.append()
+            # if len(allowed_entity.split(" ")) > 1:
+            #     allowed_public_keys.append(further_resolve_policy(allowed_entity))
+            # else:    
+            #     allowed_public_keys.append()
+            
+            allowed_public_keys.append(allowed_entity)
             
         print("\nAllowed public keys for the resource:")
         for pk in allowed_public_keys:
@@ -84,13 +88,20 @@ try:
         pk = input("\nEnter the public key to generate proof: ").strip()
         
         print("\nGenerated Proof Chain:")
+        
         multiline = ""
+        chain_der_files = []
+        
         for proof in proof_chain:
             if pk == proof.subject.principal.key:
                 for cert_id in proof.cert_ids:
                     cert_line = print_cert(certs[cert_id])
+                    chain_der_files.append(certs[cert_id].filename)
                     # print(cert_line)
                     multiline += cert_line + "\n"
+                break
+            
+        create_der_zip(chain_der_files, "proof_chain.zip")
 
         # multiline = ""
         client_socket.sendall((multiline + END_MARKER).encode())
