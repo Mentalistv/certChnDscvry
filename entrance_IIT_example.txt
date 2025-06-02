@@ -1,0 +1,37 @@
+KLIB Issuing_machine -> KIM1
+KLIB Issuing_machine -> KIM2
+KLIB Issuing_machine -> KIM3
+
+KIM1 books -> KLIB Entrant [0]
+
+KLIB books -> KIIT Depts [1]
+KLIB books -> KIIT Staff [1]
+KLIB books -> KIIT Visitors [0]
+
+KIIT Staff -> KLIBN [0]
+KIIT Visitors -> KRANDOM
+
+KIIT Depts -> KCSE
+KIIT Depts -> KEE
+KIIT Depts -> KAERO
+
+KCSE Labs -> KISRDC
+KCSE Labs -> KCFILT
+KCSE Labs -> KTRUST
+
+KISRDC Members -> KISRDC Prof
+KISRDC Members -> KISRDC Staff
+
+KISRDC Prof -> KVISHWAS [1]
+KISRDC Prof -> KVIRENDRA [1]
+
+KISRDC Prof -> KISRDC Students [0]
+
+KISRDC Students -> KVARN
+KISRDC Students -> KPRANAV
+KISRDC Students -> KBHARAT
+
+KISRDC Staff -> KSUMA
+
+KLIB books -> KLIB Entrant [0]
+KLIB Entrant -> KLIB Depts Labs Members
